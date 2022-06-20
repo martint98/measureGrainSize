@@ -36,7 +36,7 @@ def load_d3d_slice(dstruct, sliceindex, plane_normal):
     # zdim = shape(4); % UNUSED NOW, NEEDED LATER. SEE TO-DO BELOW.
     xdim = shape[0]
     ydim = shape[1]
-    zdim = shape[2]
+    # zdim = shape[2]   # UNUSED NOW, NEEDED LATER. SEE TO-DO BELOW.
 
     # Determine which slice to be analyzed from a certain direction
     # if plane_normal == 'z'
@@ -57,21 +57,27 @@ def load_d3d_slice(dstruct, sliceindex, plane_normal):
     # TODO: The reshaping needs to be generalized for non-cube datasets!!!
 
     # Reshape the slice into an n x 3 array of presumed Euler angles
-    # Eul = reshape(slice, 3, [])';
-    print(slice[:][0][0])
-    print(slice[0][:][0])
-    print(slice[0][0][:])
+    # Eul = reshape(slice, 3, [])';          # Don't think translation necessary because data already formatted properly
+
     # Generate an nx1 array of x-coordinates
-    x = []
-    for i, item in enumerate(slice):
-        x.append(item[0])
-    print(x)
     # x = repmat(1:xdim, [1, ydim])';
-    # % Generate an nx1 array of y-coordinates
+    x = np.zeros((xdim, ydim))
+    for i in range(ydim):
+        for j in range(xdim):
+            x[i, j] = j + 1
+
+    # Generate an nx1 array of y-coordinates
     # y = reshape(repmat(1:ydim, [xdim, 1]), 1, [])';
-    # % Generate an nx1 array of phase indices
+    y = np.zeros((ydim, xdim))
+    for i in range(xdim):
+        for j in range(ydim):
+            y[i, j] = j + 1
+
+    # Generate an nx1 array of phase indices
     # phase = ones(xdim * ydim, 1);
-    #
+    phase = np.ones((xdim*ydim, 1))
+
+    # TODO: Convert below code to Python when MTEX functionality is developed in Python
     # %--- Import the slice into MTEX ---%
     # % crystal symmetry
     # CS = {...
@@ -94,22 +100,31 @@ if __name__ == '__main__':
     # fpth = "C:\\Users\\marti\\Downloads\\Series1_Structure1_LowRes_1.dream3d"
     fpth = "C:\\Users\\marti\\Downloads\\Supplemental DREAM3D Structures\\Series1_Structure1_HighRes_1.dream3d"
 
-    ebsd_path = "C:\\Users\\marti\\Downloads\\GS_Meas\\myEBSD.mat"
-    # mat = loadmat(ebsd_path)
     # Load dream.3d file
     user_data = h5py.File(f'{fpth}', 'r')
     user_dstruct = Dstruct(user_data)
 
     # Load a slice of the data as MTEX ebsd
+    ebsd_path = "C:\\Users\\marti\\Downloads\\GS_Meas\\myEBSD_high_res_1.mat"
+    ebsd = loadmat(ebsd_path)
     slice_index = 2
     plane_normal = 'z'
     load_d3d_slice(user_dstruct, slice_index, plane_normal)
     # ebsd = load_d3d_slice(user_data, slice_index, plane_normal)
 
-    ## Make all slices have exactly the same dimensions for comparable grain sizes
+    # Hard code MTEX ebsd attributes into Python
+    ebsd_x_path = "C:\\Users\\marti\\Downloads\\GS_Meas\\myEBSD_high_res_1_x.mat"
+    ebsd_y_path = "C:\\Users\\marti\\Downloads\\GS_Meas\\myEBSD_high_res_1_y.mat"
+    ebsd_x = loadmat(ebsd_x_path)
+    ebsd_y = loadmat(ebsd_y_path)
+
+    # Make all slices have exactly the same dimensions for comparable grain sizes
     # res_adjust = 200.0 / (max(ebsd.x) - min(ebsd.x));
     # ebsd.x = res_adjust * ebsd.x;
     # ebsd.y = res_adjust * ebsd.y;
+    res_adjust = 200.0 / (np.max(ebsd_x['ebsd_x']) - np.min(ebsd_x['ebsd_x']))
+    ebsd_x = res_adjust * ebsd_x['ebsd_x']
+    ebsd_y = res_adjust * ebsd_y['ebsd_y']
 
     ## Do some grain size measurements!
     # [G_S, N_A_S, n_S] = GrainSize_E112_SaltikovPlanimetric(ebsd);
