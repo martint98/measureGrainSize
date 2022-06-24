@@ -236,7 +236,7 @@ def GrainSize_E2627_AsWritten(ebsd):
     # [G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas] = GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain, varargin{:});
     G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas = GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain)
 
-    return var1, var2, var3, var4, var5, var6
+    return G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas
 
 def GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain):
     # function [G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas] = GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain, varargin)
@@ -275,42 +275,54 @@ def GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain):
                           [(max(ebsd.x) - xinset)[0], (min(ebsd.y) + yinset)[0]]])
 
     # [~, ~, ~, ~, ~, ~, inside_grains, ~, ~] = grainsize_areas_planimetric(ebsd, polygon, varargin{:});
-    G_N, N_A, N = grainsize_areas_planimetric(polygon)
+    inside_grains = loadmat("GS_Meas\\myEBSD_high_res_1_inside_grains_for_customMinGS.mat")
 
     # ASTM E-2627 takes the mean area of grains with over 100 px each, and
     # requires the average grain prior to thresholding has at least 500 px.
     # Here we allow an arbitrary number of pixel threshold.
     # px_area = polyarea(ebsd.unitCell(:,1), ebsd.unitCell(:,2));
-    px_area = get_polygon_area_shoelace_formula()
+    px_area = get_polygon_area_shoelace_formula(polygon[:, 0], polygon[:, 1])
     # threshold = min_px_per_grain * px_area;
+    threshold = min_px_per_grain * px_area
 
     # Number of pixels per grain before threshold
     # avg_px_per_grain_before_threshold = mean(inside_grains.area / px_area);
+    inside_grains_area = loadmat("GS_Meas\\myEBSD_high_res_1_inside_grains_area_before_redux.mat")
+    avg_px_per_grain_before_threshold = np.mean(inside_grains_area / px_area)
 
     # Remove grains with fewer pixels than the threshold
     # excluded_grains = inside_grains(inside_grains.area >= threshold);
+    excluded_grains = loadmat("GS_Meas\\myEBSD_high_res_1_excluded_grains.mat")
     # inside_grains(inside_grains.area < threshold) = [];
+    inside_grains = loadmat("GS_Meas\\myEBSD_high_res_1_inside_grains_after_threshold_redux.mat")
     # areas = inside_grains.area;
+    areas = loadmat("GS_Meas\\myEBSD_high_res_1_inside_grains_area_after_redux.mat")
     # n = length(areas);
-    # TODO: use max(npArray.shape) if above areas array is not a len of 1 in one dimension
+    n = len(areas)
     # Abar = mean(areas);
+    Abar = np.mean(areas)
 
     # Calculate the number of analyzed grains per unit area
     # NOTE THAT THIS REFLECTS THE NUMBER OF GRAINS ELIMINATED BY THE THRESHOLD
     # This value is potentially useful for assessing differences between
     # E112 planimetric measurements and the E2627 standard
     # analyzed_area = polyarea(polygon(:,1), polygon(:,2)) - sum(excluded_grains.area);
+    excluded_grains_area = loadmat("GS_Meas\\myEBSD_high_res_1_excluded_grains_area.mat")
+    analyzed_area = get_polygon_area_shoelace_formula(polygon[:, 0], (polygon[:, 1] - sum(excluded_grains_area)))
     # N_A_measured = numel(inside_grains.area) / analyzed_area;
+    N_A_measured = len(areas) / analyzed_area
 
     # G_A = G_meanbarA(Abar);
+    G_A = G_meanbarA(Abar)
 
+    # TODO: Plot
     # plotting subfunction
     # if ismember('PlotResults',varargin)
     #     plot(inside_grains.boundary); hold on
     #     plot(excluded_grains, 'FaceColor', 'k', 'FaceAlpha', 1.0); hold on
     #     plot(inside_grains)
 
-    # return G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas
+    return G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas
 
 def GrainSize_E112_JeffriesPlanimetric(ebsd):
     # Jeffries' Planimetric: Count of grains in a test circle
@@ -415,11 +427,11 @@ if __name__ == '__main__':
 
     # Do some grain size measurements!
     # [G_S, N_A_S, n_S] = GrainSize_E112_SaltikovPlanimetric(ebsd);
-    G_N, N_A, N = GrainSize_E112_SaltikovPlanimetric(myEBSD)
+    G_S, N_A_S, n_S = GrainSize_E112_SaltikovPlanimetric(myEBSD)
     # [G_J, N_A_J, n_J] = GrainSize_E112_JeffriesPlanimetric(ebsd);
-    G_N, N_A, N = GrainSize_E112_JeffriesPlanimetric(myEBSD)
+    G_J, N_A_J, n_J = GrainSize_E112_JeffriesPlanimetric(myEBSD)
     # [G_A1, Abar_A1, n_A1, N_A_measured_A1, avg_px_per_grain_after_threshold, areas_A1] = GrainSize_E2627_AsWritten(ebsd);
-    # var1, var2, var3, var4, var5, var6 = GrainSize_E2627_AsWritten(myEBSD)
+    G_A1, Abar_A1, n_A1, N_A_measured_A1, avg_px_per_grain_after_threshold, areas_A1 = GrainSize_E2627_AsWritten(myEBSD)
     # [G_A2, Abar_A2, n_A2, N_A_measured_A2, avg_px_per_grain_before_threshold, areas_A2] = GrainSize_E2627_CustomMinGS(ebsd, 0.0);
     # [G_L, lbar, n_L_intercepts, intercept_lengths_L] = GrainSize_E112_HeynRandomLineMLI(ebsd);
     # [G_PL, P_L, PL_intersection_count, nlines, Heyn_total_line_length] = GrainSize_E112_HeynRandomLinePL(ebsd);
