@@ -24,9 +24,9 @@ ebsd.x = res_adjust * ebsd.x;
 ebsd.y = res_adjust * ebsd.y;
 
 % Do some grain size measurements!
-[G_S, N_A_S, n_S] = GrainSize_E112_SaltikovPlanimetric(ebsd);
+%[G_S, N_A_S, n_S] = GrainSize_E112_SaltikovPlanimetric(ebsd);
 %[G_J, N_A_J, n_J] = GrainSize_E112_JeffriesPlanimetric(ebsd);
-%[G_A1, Abar_A1, n_A1, N_A_measured_A1, avg_px_per_grain_after_threshold, areas_A1] = GrainSize_E2627_AsWritten(ebsd);
+[G_A1, Abar_A1, n_A1, N_A_measured_A1, avg_px_per_grain_after_threshold, areas_A1] = GrainSize_E2627_AsWritten(ebsd);
 %[G_A2, Abar_A2, n_A2, N_A_measured_A2, avg_px_per_grain_before_threshold, areas_A2] = GrainSize_E2627_CustomMinGS(ebsd, 0.0);
 %[G_L, lbar, n_L_intercepts, intercept_lengths_L] = GrainSize_E112_HeynRandomLineMLI(ebsd);
 %[G_PL, P_L, PL_intersection_count, nlines, Heyn_total_line_length] = GrainSize_E112_HeynRandomLinePL(ebsd);
