@@ -26,8 +26,6 @@ class Dstruct:
         self.mincutoff = (np.log(self.minsize) - self.mu) / self.sigma
         self.maxcutoff = (np.log(self.maxsize) - self.mu) / self.sigma
         self.ngrains = user_data['DataContainers']['SyntheticVolumeDataContainer']['Grain Data'].attrs['TupleDimensions']
-        # self.unitcell_x =
-        # self.unitcell_y =
 
 
 class EBSD:
@@ -117,7 +115,7 @@ def G_meanbarA(bar_A):
     # Calculating ASTM grain size as a function of the mean cross-sectional
     # area of grains not bordering the edge
 
-    # TODO: Verify if below note from MATLAB is true for Python code in existence
+    # Note from MATLAB (keeping for now)
     # bar_A was previously calculated:
         # ar = area(grains)  --area of each individual grain
         # ngrains = numel(ar)  --number of grains detected
@@ -125,7 +123,6 @@ def G_meanbarA(bar_A):
 
     A = 2.0*np.log2(254.0)+1.0
     B = 1.0/(np.log10(2.0))
-
     G2 = A - B*np.log10(bar_A)
 
     return G2
@@ -135,43 +132,34 @@ def grainsize_areas_planimetric(polygon):
     # [inside_grains, edge_grains] = edge_grain_segmentation(ebsd, polygon, varargin{:});
 
     # Calculate number of grains according to ASTM E-112 section 11.1
-    # N_inside = numel(inside_grains.area);
     # inside_grains_area = loadmat("GS_Meas\\myEBSD_high_res_1_area_inside_grains.mat")    # JeffriesPlanimetric
-    inside_grains_area = loadmat("GS_Meas\\myEBSD_high_res_1_inside_grains_area.mat")      # SaltikovPlanimetric and ALA
     # inside_grains_area = inside_grains_area['areaInsideGrains']                          # JeffriesPlanimetric
+    inside_grains_area = loadmat("GS_Meas\\myEBSD_high_res_1_inside_grains_area.mat")      # SaltikovPlanimetric and ALA
     inside_grains_area = inside_grains_area['inside_grains_area']                          # SaltikovPlanimetric and ALA
     N_inside = len(inside_grains_area)
 
     # There is some bug in the edge grain segmentation which results in
     # duplicate grains. Selecting only unique centroids fixes this.
-    edge_grains_centroid = loadmat("GS_Meas\\myEBSD_high_res_1_edge_grains_centroid.mat")  # SaltikovPlanimetric and ALA
-    # edge_grains_centroid = loadmat("GS_Meas\\myEBSD_high_res_1_jeffries_edge_grains_centroid.mat")  # JeffrieesPlanimetric
     # u = unique(edge_grains.centroid, 'rows');
-    u = np.unique(edge_grains_centroid['edge_grains_centroid'])                            # SaltikovPlanimetric and ALA
+    # edge_grains_centroid = loadmat("GS_Meas\\myEBSD_high_res_1_jeffries_edge_grains_centroid.mat")  # JeffrieesPlanimetric
     # u = np.unique(edge_grains_centroid['jeffries_edge_grain_centroids'])                            # JeffriesPlanimetric
-    # N_intercepted = numel(u);
+    edge_grains_centroid = loadmat("GS_Meas\\myEBSD_high_res_1_edge_grains_centroid.mat")  # SaltikovPlanimetric and ALA
+    u = np.unique(edge_grains_centroid['edge_grains_centroid'])                            # SaltikovPlanimetric and ALA
     N_intercepted = len(u)
 
     # Calculate N_A for grain counting approaches
-    # polygon_area = polyarea(polygon(:,1), polygon(:,2));
-    # polygon_x = polygon(:, )
     polygon_area = get_polygon_area_shoelace_formula(polygon[:, 0], polygon[:, 1])
-    # N_A_counted = (N_inside + 0.5 * N_intercepted) / polygon_area;
     N_A_counted = (N_inside + 0.5 * N_intercepted) / polygon_area
 
     # Note that this can alternatively be calculated as 1/N_A by the standard.
     # These values are not equivalent, but should be similar.
     # areas = inside_grains.area;
     areas = inside_grains_area
-    # Abar = mean(areas);
     Abar = np.mean(areas)
-    # N = numel(areas);
     N = len(areas)
 
     # Calculate ASTM grain size
-    # G_N = G_numgrain(N_A_counted);
     G_N = G_numgrain(N_A_counted)
-    # G_A = G_meanbarA(Abar);
     G_A = G_meanbarA(Abar)
     return G_N, N_A_counted, N
 
@@ -198,28 +186,17 @@ def GrainSize_E112_SaltikovPlanimetric(ebsd):
     offset = 0.02  # 2 percent inset from edges
     xres = (max(ebsd.x) - min(ebsd.x)) / len(ebsd.x)
     yres = (max(ebsd.y) - min(ebsd.y)) / len(ebsd.y)
-    # xinset = numel(ebsd.x) * offset * xres;
-    # yinset = numel(ebsd.y) * offset * yres;
     xinset = len(ebsd.x) * offset * xres
     yinset = len(ebsd.y) * offset * yres
 
-    # polygon = [min(ebsd.x)+xinset, min(ebsd.y)+yinset;
-    #            min(ebsd.x)+xinset, max(ebsd.y)-yinset;
-    #            max(ebsd.x)-xinset, max(ebsd.y)-yinset;
-    #            max(ebsd.x)-xinset, min(ebsd.y)+yinset];
     polygon = np.asarray([[(min(ebsd.x) + xinset)[0], (min(ebsd.y) + yinset)[0]],
                [(min(ebsd.x) + xinset)[0], (max(ebsd.y) - yinset)[0]],
                [(max(ebsd.x) - xinset)[0], (max(ebsd.y) - yinset)[0]],
                [(max(ebsd.x) - xinset)[0], (min(ebsd.y) + yinset)[0]]])
 
-    # print(f"Polygon:\n"
-    #       f"[[{(min(ebsd.x) + xinset)[0]}, {(min(ebsd.y) + yinset)[0]}],\n"
-    #       f"[{(min(ebsd.x)+xinset)[0]}, {(max(ebsd.y)-yinset)[0]}],\n"
-    #       f"[{(max(ebsd.x) - xinset)[0]}, {(max(ebsd.y) - yinset)[0]}],\n"
-    #       f"[{(max(ebsd.x) - xinset)[0]}, {(min(ebsd.y) + yinset)[0]}]]")
-
     # [G_N, ~, N_A, N, ~, ~, inside_grains2, edge_grains2, ~] = grainsize_areas_planimetric(ebsd, polygon, varargin{:});
     G_N, N_A, N = grainsize_areas_planimetric(polygon)
+
     # TODO: Figure out how below MATLAB plotting logic works and implement into Python
     # if ismember('PlotResults',varargin)
     #     plot(ebsd, ebsd.orientations); hold on
@@ -234,7 +211,6 @@ def GrainSize_E2627_AsWritten(ebsd):
     # function [G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas] = GrainSize_E2627_AsWritten(ebsd, varargin)
     # Perform ASTM E2627 measurement as written (minimum grain size 100 px)
 
-    # min_px_per_grain = 100;
     min_px_per_grain = 100
     # [G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas] = GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain, varargin{:});
     G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas = GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain)
@@ -256,21 +232,12 @@ def GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain):
     # the figure, so we need to inset it from the edges a bit. For the area
     # based method, we want to reject the grains that touch the edges of the
     # EBSD scan.
-    # offset = 0.0; % zeroed out
     offset = 0.0  # zeroed out
-    # xres = (max(ebsd.x) - min(ebsd.x)) / length(ebsd.x);
     xres = (max((ebsd.x) - min(ebsd.x))) / len(ebsd.x)
-    # yres = (max(ebsd.y) - min(ebsd.y)) / length(ebsd.y);
     yres = (max(ebsd.y) - min(ebsd.y)) / len(ebsd.y)
-    # xinset = numel(ebsd.x) * offset * xres;
     xinset = len(ebsd.x) * offset * xres
-    # yinset = numel(ebsd.y) * offset * yres;
     yinset = len(ebsd.y) * offset * yres
 
-    # polygon = [min(ebsd.x)+xinset, min(ebsd.y)+yinset;
-    #            min(ebsd.x)+xinset, max(ebsd.y)-yinset;
-    #            max(ebsd.x)-xinset, max(ebsd.y)-yinset;
-    #            max(ebsd.x)-xinset, min(ebsd.y)+yinset];
     polygon = np.asarray([[(min(ebsd.x) + xinset)[0], (min(ebsd.y) + yinset)[0]],
                           [(min(ebsd.x) + xinset)[0], (max(ebsd.y) - yinset)[0]],
                           [(max(ebsd.x) - xinset)[0], (max(ebsd.y) - yinset)[0]],
@@ -288,7 +255,6 @@ def GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain):
     unitcelly = unitcelly['ebsd_unit_cell_y']
 
     px_area = get_polygon_area_shoelace_formula(unitcellx, unitcelly)
-    # threshold = min_px_per_grain * px_area;
     threshold = min_px_per_grain * px_area
 
     # Number of pixels per grain before threshold
@@ -304,26 +270,21 @@ def GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain):
     # areas = loadmat("GS_Meas\\myEBSD_high_res_1_inside_grains_area_after_redux.mat")           # AsWritten
     # areas = areas['inside_grains_area_1']                                                      # AsWritten
     areas = loadmat("GS_Meas\\myEBSD_high_res_1_customGS_inside_grains_area_after_redux.mat")  # CustomGS
-    areas = areas['areas']                                                                     # CustomGS
-    # n = length(areas);
+    areas = areas['areas']
     n = len(areas)
-    # Abar = mean(areas);
     Abar = np.mean(areas)
 
     # Calculate the number of analyzed grains per unit area
     # NOTE THAT THIS REFLECTS THE NUMBER OF GRAINS ELIMINATED BY THE THRESHOLD
     # This value is potentially useful for assessing differences between
     # E112 planimetric measurements and the E2627 standard
-    # analyzed_area = polyarea(polygon(:,1), polygon(:,2)) - sum(excluded_grains.area);
     # excluded_grains_area = loadmat("GS_Meas\\myEBSD_high_res_1_excluded_grains_area.mat")      # AsWritten
     # excluded_grains_area = excluded_grains_area['excluded_grains_area']                        # AsWritten
     excluded_grains_area = loadmat("GS_Meas\\myEBSD_high_res_1_customGS_excluded_grains_area.mat")      # CustomGS
     excluded_grains_area = excluded_grains_area['customGS_excluded']                                    # CustomGS
     analyzed_area = get_polygon_area_shoelace_formula(polygon[:, 0], polygon[:, 1]) - sum(excluded_grains_area)
-    # N_A_measured = numel(inside_grains.area) / analyzed_area;
     N_A_measured = n / analyzed_area
 
-    # G_A = G_meanbarA(Abar);
     G_A = G_meanbarA(Abar)
 
     # TODO: Plot
@@ -340,36 +301,24 @@ def GrainSize_E112_JeffriesPlanimetric(ebsd):
     # Grains completely enclosed count as 1, those intercepted by the circle count by half.
 
     # approximate a circle as a polygon
-    # offset = 0.02; % 2pct inset from edges
     offset = 0.02  # 2 percent inset from edges
-    # xcenter = 0.5 * (max(ebsd.x) - min(ebsd.x));
     xcenter = 0.5 * (max(ebsd.x) - min(ebsd.x))
-    # ycenter = 0.5 * (max(ebsd.y) - min(ebsd.y));
     ycenter = 0.5 * (max(ebsd.y) - min(ebsd.y))
-    # thetas = 0.0:pi/100.0:2.0*pi;
     thetas = np.arange(start=0, step=(np.pi/100), stop=((2 * np.pi) + (np.pi/100)))
-    # xres = 2.0 * xcenter / length(ebsd.x);
     xres = (2 * xcenter)/len(ebsd.x)
-    # yres = 2.0 * ycenter / length(ebsd.y);
     yres = (2 * ycenter)/len(ebsd.y)
-    # radius = 0.5 * min(max(ebsd.x) - min(ebsd.x), ...
-    #                max(ebsd.y) - min(ebsd.y));
     radius = 0.5 * min((max(ebsd.x) - min(ebsd.x)), (max(ebsd.y) - min(ebsd.y)))
-    # inset = max(numel(ebsd.x) * offset * xres, numel(ebsd.y) * offset * yres);
     inset = max((len(ebsd.x) * offset * xres), (len(ebsd.y) * offset * yres))
-    # radius = radius - inset; % inset from the edges of the scan
     radius = radius - inset  # inset from the edges of the scan
-    # circ_x = radius * cos(thetas) + xcenter;
     circ_x = radius * np.cos(thetas) + xcenter
-    # circ_y = radius * sin(thetas) + ycenter;
     circ_y = radius * np.sin(thetas) + ycenter
-    # polygon = [circ_x' circ_y'];
     for i in range(len(circ_x)):
         if i == 0:
             polygon = np.array([circ_x[i], circ_y[i]])
         else:
             coords = np.array([circ_x[i], circ_y[i]])
             polygon = np.vstack((polygon, coords))
+
     # [G_N, ~, N_A, N, ~, ~, inside_grains2, edge_grains2, ~] = grainsize_areas_planimetric(ebsd, polygon, varargin{:});
     G_N, N_A, N = grainsize_areas_planimetric(polygon)
 
@@ -1068,7 +1017,7 @@ def GrainSize_E930_ALA(ebsd, G2):
     # function [G_largestGrain, volFraction] = GrainSize_E930_ALA(ebsd, G2, varargin)
     # ASTM Standard E930 Procedure 6.4 (Referee Procedure for Image Analysis)
 
-    # G2 ---G number calculated from G_meanbarA.m function
+    # G2 ---G number calculated from G_meanbarA function
 
     # [grains, ebsd.grainId] = calcGrains(ebsd('indexed'),'angle', 5*degree,'unitcell');
     unitCell = loadmat("GS_Meas\\myEBSD_high_res_1_unit_cell.mat")
@@ -1083,37 +1032,28 @@ def GrainSize_E930_ALA(ebsd, G2):
 
     # Calculating the ASTM G number for the largest grain detected
     # extract the largest area detected
-    # maxGrainArea = max(areas);
     maxGrainArea = max(areas)
 
     # calculate the ASTM G number for the area in square microns
-    # A = 2.0 * log2(254.0) + 1.0;
     A = 2.0 * np.log2(254.0) + 1.0
-    # B = 1.0 / (log10(2.0));
     B = 1.0 / (np.log10(2.0))
-    # G_largestGrain = A - B * log10(maxGrainArea);
     G_largestGrain = A - B * np.log10(maxGrainArea)
 
     # G number that represents the average grain size from average area
-    # G_scanAvg = G2;
     G_scanAvg = G2
-    # G_scanAvg = G_scanAvg - 3.0; % subtract 3 ASTM numbers
     G_scanAvg = G_scanAvg - 3.0  # Subtract 3 ASTM numbers
 
     # convert G_scanAvg back to area
-    # calcArea = 10.0 ^ ((G_scanAvg - A) / -B);
     calcArea = 10.0 ** ((G_scanAvg - A) / (-1 * B))
 
     # Sum of the areas larger than 'calcArea'
     # largestGrains = sum(areas(areas>calcArea,:));
     large_areas = [area for area in areas if area > calcArea]
     largestGrains = sum(large_areas)
+
     # Calculating the volume fraction
-    # volFraction = largestGrains / (sum(areas));
     volFraction = largestGrains / sum(areas)
     # If largest grains make up more than 5% of the area, output a warning
-    # if volFraction > 0.05
-    #     warning('Volume Fraction greater than 0.05')
     if volFraction > 0.05:
         warnings.warn(f"Volume Fraction greater than 0.05")
 
@@ -1157,11 +1097,15 @@ if __name__ == '__main__':
     # print(G_A2, Abar_A2, n_A2, N_A_measured_A2, avg_px_per_grain_before_threshold, areas_A2)
     # TODO: Inactive translation due to MTEX interaction in looped randlin function
     # G_L, lbar, n_L_intercepts, intercept_lengths_L = GrainSize_E112_HeynRandomLineMLI(myEBSD)
+    # print(G_L, lbar, n_L_intercepts, intercept_lengths_L)
     # TODO: Inactive translation due to MTEX interaction in looped randlin function
     # G_PL, P_L, PL_intersection_count, nlines, Heyn_total_line_length = GrainSize_E112_HeynRandomLinePL(myEBSD)
+    # print(G_PL, P_L, PL_intersection_count, nlines, Heyn_total_line_length)
     # TODO: Inactive translation due to MTEX interaction in for loop
     # G_Hilliard, hilliardIntCount, hilliard_lbar, hilliardCircumference = GrainSize_E112_Hilliard(myEBSD)
+    # print(G_Hilliard, hilliardIntCount, hilliard_lbar, hilliardCircumference)
     # TODO: Inactive translation due to MTEX interaction in for loop
     # G_Abrams, abramsIntCount, abrams_lbar, abramsCircumference = GrainSize_E112_Abrams(myEBSD)
+    # print(G_Abrams, abramsIntCount, abrams_lbar, abramsCircumference)
     # G_largestGrain, volFraction = GrainSize_E930_ALA(myEBSD, G_S)   # Verified output matches MATLAB (Requires changing inputs within grainsize_areas_planimetric)
     # print(G_largestGrain, volFraction)
