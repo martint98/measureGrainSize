@@ -286,6 +286,7 @@ def GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain):
     unitcellx = unitcellx['ebsd_unit_cell_x']
     unitcelly = loadmat("GS_Meas\\myEBSD_high_res_1_unit_cell_y.mat")
     unitcelly = unitcelly['ebsd_unit_cell_y']
+
     px_area = get_polygon_area_shoelace_formula(unitcellx, unitcelly)
     # threshold = min_px_per_grain * px_area;
     threshold = min_px_per_grain * px_area
@@ -293,29 +294,32 @@ def GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain):
     # Number of pixels per grain before threshold
     # avg_px_per_grain_before_threshold = mean(inside_grains.area / px_area);
     inside_grains_area = loadmat("GS_Meas\\myEBSD_high_res_1_inside_grains_area_before_redux.mat")
-    print(inside_grains_area['inside_grains_area'])
-    avg_px_per_grain_before_threshold = np.mean(inside_grains_area['inside_grains_area'] / px_area)
-    print(avg_px_per_grain_before_threshold)
+    inside_grains_area = inside_grains_area['inside_grains_area']
+    avg_px_per_grain_before_threshold = np.mean(inside_grains_area / px_area)
 
     # Remove grains with fewer pixels than the threshold
     # excluded_grains = inside_grains(inside_grains.area >= threshold);
-    excluded_grains = loadmat("GS_Meas\\myEBSD_high_res_1_excluded_grains.mat")
     # inside_grains(inside_grains.area < threshold) = [];
-    inside_grains = loadmat("GS_Meas\\myEBSD_high_res_1_inside_grains_after_threshold_redux.mat")
     # areas = inside_grains.area;
-    areas = loadmat("GS_Meas\\myEBSD_high_res_1_inside_grains_area_after_redux.mat")
+    # areas = loadmat("GS_Meas\\myEBSD_high_res_1_inside_grains_area_after_redux.mat")           # AsWritten
+    # areas = areas['inside_grains_area_1']                                                      # AsWritten
+    areas = loadmat("GS_Meas\\myEBSD_high_res_1_customGS_inside_grains_area_after_redux.mat")  # CustomGS
+    areas = areas['areas']                                                                     # CustomGS
     # n = length(areas);
-    n = len(areas['inside_grains_area_1'])
+    n = len(areas)
     # Abar = mean(areas);
-    Abar = np.mean(areas['inside_grains_area_1'])
+    Abar = np.mean(areas)
 
     # Calculate the number of analyzed grains per unit area
     # NOTE THAT THIS REFLECTS THE NUMBER OF GRAINS ELIMINATED BY THE THRESHOLD
     # This value is potentially useful for assessing differences between
     # E112 planimetric measurements and the E2627 standard
     # analyzed_area = polyarea(polygon(:,1), polygon(:,2)) - sum(excluded_grains.area);
-    excluded_grains_area = loadmat("GS_Meas\\myEBSD_high_res_1_excluded_grains_area.mat")
-    analyzed_area = get_polygon_area_shoelace_formula(polygon[:, 0], polygon[:, 1]) - sum(excluded_grains_area['excluded_grains_area'])
+    # excluded_grains_area = loadmat("GS_Meas\\myEBSD_high_res_1_excluded_grains_area.mat")      # AsWritten
+    # excluded_grains_area = excluded_grains_area['excluded_grains_area']                        # AsWritten
+    excluded_grains_area = loadmat("GS_Meas\\myEBSD_high_res_1_customGS_excluded_grains_area.mat")      # CustomGS
+    excluded_grains_area = excluded_grains_area['customGS_excluded']                                    # CustomGS
+    analyzed_area = get_polygon_area_shoelace_formula(polygon[:, 0], polygon[:, 1]) - sum(excluded_grains_area)
     # N_A_measured = numel(inside_grains.area) / analyzed_area;
     N_A_measured = n / analyzed_area
 
@@ -1148,9 +1152,8 @@ if __name__ == '__main__':
     # G_J, N_A_J, n_J = GrainSize_E112_JeffriesPlanimetric(myEBSD)    # Verified output matches MATLAB (Requires changing inputs within grainsize_areas_planimetric)
     # print(G_J, N_A_J, n_J)
     # G_A1, Abar_A1, n_A1, N_A_measured_A1, avg_px_per_grain_after_threshold, areas_A1 = GrainSize_E2627_AsWritten(myEBSD)    # Verified output matches MATLAB (Requires changing inputs within CustomMinGS)
-    # Incorrect: N_A_measured_A1, avg_px_per_grain_after_threshold
-    # print(G_A1, Abar_A1, n_A1, N_A_measured_A1, avg_px_per_grain_after_threshold, areas_A1['inside_grains_area_1'])
-    G_A2, Abar_A2, n_A2, N_A_measured_A2, avg_px_per_grain_before_threshold, areas_A2 = GrainSize_E2627_CustomMinGS(myEBSD, 0.0)    # Incorrect output
+    # print(G_A1, Abar_A1, n_A1, N_A_measured_A1, avg_px_per_grain_after_threshold, areas_A1)
+    # G_A2, Abar_A2, n_A2, N_A_measured_A2, avg_px_per_grain_before_threshold, areas_A2 = GrainSize_E2627_CustomMinGS(myEBSD, 0.0)    # Verified output matches MATLAB (Requires changing inputs within CustomMinGS)
     # print(G_A2, Abar_A2, n_A2, N_A_measured_A2, avg_px_per_grain_before_threshold, areas_A2)
     # TODO: Inactive translation due to MTEX interaction in looped randlin function
     # G_L, lbar, n_L_intercepts, intercept_lengths_L = GrainSize_E112_HeynRandomLineMLI(myEBSD)
