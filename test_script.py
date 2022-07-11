@@ -127,6 +127,27 @@ def G_meanbarA(bar_A):
 
     return G2
 
+def G_meanintl(u):
+# Calculate the ASTM grain size as a function of mean intercept length
+
+# mean intercept length was previously calculated:
+#     %---- calculating the average intercept length
+# %         ints = xync(:,5)  --extracting number of intercept lines
+# %         z = sum(ints)  --total number of intercept lines
+# %
+# %         intl = linints(:,1)  --extracting the intercept lengths
+# %         q = sum(intl)  --total of intercept lengths
+# %
+# %         % calculating the mean intercept length:
+# %         u = q / z  --total of int lengths / total number of intercepts
+
+    A = 2.0 * np.log2(320.0)
+    B = 2.0 / np.log10(2.0)
+
+    G = A - B * np.log10(u)
+
+    return G
+
 def grainsize_areas_planimetric(polygon):
     # Perform segmentation
     # [inside_grains, edge_grains] = edge_grain_segmentation(ebsd, polygon, varargin{:});
@@ -375,10 +396,22 @@ def grainsize_linint_random(ebsd, min_intercepts):
         # intercept_total = sum(intercept_count);
         # Add another random line
         # nlines = nlines + 1;
-    # Hard code final iteration of above
-    intercept_count = 5
+
+    # Hard code loop results for HeynRandomLineMLI and PL
+    P_L = 51
+    total_line_length = 1081.373455580337
+    intercept_lengths = loadmat("GS_Meas\\linint_random_while_loop_output\\intercept_lengths.mat")
+    intercept_lengths = intercept_lengths["intercept_lengths"]
+    gb_intersection_coordinates = loadmat("GS_Meas\\linint_random_while_loop_output\\gb_intersection_coordinates.mat")
+    gb_intersection_coordinates = gb_intersection_coordinates["gb_intersection_coordinates"]
+    line_intersection_results = loadmat("GS_Meas\\linint_random_while_loop_output\\line_intersection_coordinates.mat")
+    line_intersection_results = line_intersection_results["line_intersection_results"]
+    triplept_intersection_coordinates = loadmat("GS_Meas\\linint_random_while_loop_output\\triplept_intersection_coordinates.mat")
+    triplept_intersection_coordinates = triplept_intersection_coordinates["triplept_intersection_coordinates"]
+    nlines = 6
+    intercept_count = line_intersection_results[:, 4]
     intercept_total = sum(intercept_count)
-    nlines = nlines + 1
+
     # nlines  = nlines -1;
     nlines = nlines - 1
 
@@ -1100,10 +1133,10 @@ if __name__ == '__main__':
     # print(G_A1, Abar_A1, n_A1, N_A_measured_A1, avg_px_per_grain_after_threshold, areas_A1)
     # G_A2, Abar_A2, n_A2, N_A_measured_A2, avg_px_per_grain_before_threshold, areas_A2 = GrainSize_E2627_CustomMinGS(myEBSD, 0.0)    # Verified output matches MATLAB (Requires changing inputs within CustomMinGS)
     # print(G_A2, Abar_A2, n_A2, N_A_measured_A2, avg_px_per_grain_before_threshold, areas_A2)
-    # TODO: Inactive translation due to MTEX interaction in looped randlin function
-    G_L, lbar, n_L_intercepts, intercept_lengths_L = GrainSize_E112_HeynRandomLineMLI(myEBSD)
-    print(G_L, lbar, n_L_intercepts, intercept_lengths_L)
-    # TODO: Inactive translation due to MTEX interaction in looped randlin function
+    # TODO: Incomplete translation due to randlin function
+    # G_L, lbar, n_L_intercepts, intercept_lengths_L = GrainSize_E112_HeynRandomLineMLI(myEBSD)     # Verified work done
+    # print(G_L, lbar, n_L_intercepts, intercept_lengths_L)
+    # TODO: Incomplete translation due to randlin function
     # G_PL, P_L, PL_intersection_count, nlines, Heyn_total_line_length = GrainSize_E112_HeynRandomLinePL(myEBSD)
     # print(G_PL, P_L, PL_intersection_count, nlines, Heyn_total_line_length)
     # TODO: Inactive translation due to MTEX interaction in for loop
