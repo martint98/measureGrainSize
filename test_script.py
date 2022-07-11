@@ -344,12 +344,13 @@ def grainsize_linint_random(ebsd, min_intercepts):
     # smooth grains
     # grains = grains.smooth;
     # grains = smooth(grains, 5)
-    grains = loadmat("GS_Meas\\myEBSD_high_res_1_smoothed_grains.mat")
+    grains = loadmat("GS_Meas\\myEBSD_high_res_1_smoothed_grains.mat")          # HeynRandomLineMLI and PL
 
     # calculate step size
     # stepsize = 2*abs(ebsd.unitCell(1,1));
-    unitCell = loadmat("GS_Meas\\myEBSD_high_res_1_unit_cell.mat")
-    stepsize = 2 * abs(unitCell['myUnitCell'][0][0])
+    unitCell = loadmat("GS_Meas\\myEBSD_high_res_1_unit_cell.mat")              # HeynRandomLineMLI and PL
+    unitCell = unitCell['myUnitCell']                                           # HeynRandomLineMLI and PL
+    stepsize = 2 * abs(unitCell[0][0])
 
     # Generate a number of random lines
     # Lines are added to the slice until at least 50 intercepts are
@@ -374,6 +375,10 @@ def grainsize_linint_random(ebsd, min_intercepts):
         # intercept_total = sum(intercept_count);
         # Add another random line
         # nlines = nlines + 1;
+    # Hard code final iteration of above
+    intercept_count = 5
+    intercept_total = sum(intercept_count)
+    nlines = nlines + 1
     # nlines  = nlines -1;
     nlines = nlines - 1
 
@@ -1096,8 +1101,8 @@ if __name__ == '__main__':
     # G_A2, Abar_A2, n_A2, N_A_measured_A2, avg_px_per_grain_before_threshold, areas_A2 = GrainSize_E2627_CustomMinGS(myEBSD, 0.0)    # Verified output matches MATLAB (Requires changing inputs within CustomMinGS)
     # print(G_A2, Abar_A2, n_A2, N_A_measured_A2, avg_px_per_grain_before_threshold, areas_A2)
     # TODO: Inactive translation due to MTEX interaction in looped randlin function
-    # G_L, lbar, n_L_intercepts, intercept_lengths_L = GrainSize_E112_HeynRandomLineMLI(myEBSD)
-    # print(G_L, lbar, n_L_intercepts, intercept_lengths_L)
+    G_L, lbar, n_L_intercepts, intercept_lengths_L = GrainSize_E112_HeynRandomLineMLI(myEBSD)
+    print(G_L, lbar, n_L_intercepts, intercept_lengths_L)
     # TODO: Inactive translation due to MTEX interaction in looped randlin function
     # G_PL, P_L, PL_intersection_count, nlines, Heyn_total_line_length = GrainSize_E112_HeynRandomLinePL(myEBSD)
     # print(G_PL, P_L, PL_intersection_count, nlines, Heyn_total_line_length)
