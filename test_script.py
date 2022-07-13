@@ -876,82 +876,129 @@ def GrainSize_E112_Hilliard(ebsd):
 
 def GrainSize_E112_Abrams(ebsd):
     # function [G_PL, abramsIntCount, abrams_lbar, abramsCircumference_tot] = GrainSize_E112_Abrams(ebsd)
-    # % Abrams Three-Circle Procedure: Three concentric and equally spaced
-    # % circles.
-    #
-    # % Placement of the three-circle test grid should yield 40-100 intersection
-    # % counts per slice tested.
-    #
-    # % If the circle intersects a triple point, the count is 2.
-    #
-    # % The ratio of circumference is 3:2:1
-    #
-    # %--- Populate the grains
+    # Abrams Three-Circle Procedure: Three concentric and equally spaced
+    # circles.
+    # Placement of the three-circle test grid should yield 40-100 intersection
+    # counts per slice tested.
+    # If the circle intersects a triple point, the count is 2.
+    # The ratio of circumference is 3:2:1
+
+    # Populate the grains
+    # TODO: Unit cell is same for this file, but might differ due to 2*degree below opposed to 5*degree (Determine diff)
     # [grains, ebsd.grainId] = calcGrains(ebsd('indexed'), 'angle', 2*degree, 'unitcell');
     # % plot(ebsd, ebsd.orientations); % plot the grains
     # % hold on
     # % plot(grains.boundary,'LineWidth',1); % plot the grain boundaries
     # % hold on
-    # stepsize = 2*abs(ebsd.unitCell(1,1)); % calculate step size for triple point calculations
-    #
-    # % extract triple points
+
+
+    unitCell = loadmat("GS_Meas\\myEBSD_high_res_1_unit_cell.mat")
+    # stepsize = 2*abs(ebsd.unitCell(1,1));
+    stepsize = 2 * abs(unitCell['myUnitCell'][0][0])  # Calculate step size for triple point calculations
+
+    # Extract triple points
     # tP = grains.triplePoints;
     # x_tP = tP.x;
+    x_tP = loadmat("GS_Meas\\myEBSD_high_res_1_x_tp.mat")
+    x_tP = x_tP['x_tP']
+    print(x_tP)
     # y_tP = tP.y;
+    y_tP = loadmat("GS_Meas\\myEBSD_high_res_1_y_tp.mat")
+    y_tP = y_tP['y_tP']
     # tpoint = [x_tP, y_tP];
+    for i in range(len(x_tP)):
+        if i == 0:
+            tpoint = np.array([x_tP[i][0], y_tP[i][0]])
+        else:
+            coords = np.array([x_tP[i][0], y_tP[i][0]])
+            tpoint = np.vstack((tpoint, coords))
     # ntpoints = size(tpoint);
+    ntpoints = np.shape(tpoint)
     # ntpoints = ntpoints(1);
-    #
-    # % plot triple points
+    ntpoints = ntpoints[0]
+
+    # Plot triple points
     # % plot(tP,'color','b','linewidth',2); hold on
-    #
-    #
-    # %--- Plotting the largest circle:
-    #         % approximate a circle as a polygon
+
+
+    # Plotting the largest circle:
+    # Approximate a circle as a polygon
     #         offset = 0.02; % 2pct inset from edges
+    offset = 0.02  # 2 percent inset from edges
     #         xcenter = 0.5 * (max(ebsd.x) - min(ebsd.x));
+    xcenter = 0.5 * (max(ebsd.x) - min(ebsd.x))
     #         ycenter = 0.5 * (max(ebsd.y) - min(ebsd.y));
+    ycenter = 0.5 * (max(ebsd.y) - min(ebsd.y))
     #         thetas = 0.0:pi/100.0:2.0*pi;
+    thetas = np.arange(start=0, step=(np.pi / 100), stop=((2 * np.pi) + (np.pi / 100)))
     #         xres = 2.0 * xcenter / length(ebsd.x);
+    xres = (2 * xcenter) / len(ebsd.x)
     #         yres = 2.0 * ycenter / length(ebsd.y);
+    yres = (2 * ycenter) / len(ebsd.y)
     #         radius_lg = 0.5 * min(max(ebsd.x) - min(ebsd.x), ...
     #                        max(ebsd.y) - min(ebsd.y));
+    radius_lg = 0.5 * min((max(ebsd.x) - min(ebsd.x)), (max(ebsd.y) - min(ebsd.y)))
     #         inset = max(numel(ebsd.x) * offset * xres, numel(ebsd.y) * offset * yres);
+    inset = max((len(ebsd.x) * offset * xres), (len(ebsd.y) * offset * yres))
     #         radius_lg = radius_lg - inset; % inset from the edges of the scan
+    radius_lg = radius_lg - inset  # Inset from the edges of the scan
     #         circumference_lg = 2 * pi * radius_lg;
+    circumference_lg = 2 * np.pi * radius_lg
     #         circ_x_lg = radius_lg * cos(thetas) + xcenter;
+    circ_x_lg = radius_lg * np.cos(thetas) + xcenter
     #         circ_y_lg = radius_lg * sin(thetas) + ycenter;
+    circ_y_lg = radius_lg * np.sin(thetas) + ycenter
     #         polygon_lg = [circ_x_lg' circ_y_lg']; % x/y coords of each line segment
-    #
+    for i in range(len(circ_x_lg)):
+        if i == 0:
+            polygon_lg = np.array([circ_x_lg[i], circ_y_lg[i]])
+        else:
+            coords = np.array([circ_x_lg[i], circ_y_lg[i]])
+            polygon_lg = np.vstack((polygon_lg, coords))
+
     #         % plot the largest circle
     # %         plot(circ_x_lg,circ_y_lg, 'k', 'linewidth', 3)
     # %         hold on
-    #
-    #         %--- extract the grain boundary/circle intersection data
+
+    # Extract the grain boundary/circle intersection data
     #         g = size(polygon_lg);
+    g = np.shape(polygon_lg)
     #         gg = g(1);
-    #
+    gg = g[0]
+
     #         abrams_intersections_lg = [];
-    #         for n = 1:gg-1
-    #             x_start = polygon_lg(n,1);
-    #             x_end = polygon_lg(n+1,1);
-    #             y_start = polygon_lg(n,2);
-    #             y_end = polygon_lg(n+1,2);
-    #             xy1 = [x_start, y_start];
-    #             xy2 = [x_end, y_end];
-    #             [xi, yi] = grains.boundary.intersect(xy1, xy2);
-    #             x1 = xi(~isnan(xi));
-    #             y1 = yi(~isnan(yi));
-    #             intersect_coords_lg = [x1',y1'];
-    #             %scatter(intersect_coords_lg(:,1),intersect_coords_lg(:,2),'w','linewidth',2)
-    #             num_int_lg(n) = numel(x1);
-    #             abrams_intersections_lg = cat(1, abrams_intersections_lg, intersect_coords_lg);
-    #         end % line intersection loop
-    #         abramsIntCount_lg = sum(num_int_lg)-1;
-    #
-    #
-    # %--- plotting the medium circle:
-    #         % approximate a circle as a polygon
+    abrams_intersections_lg = []
+    # #         for n = 1:gg-1
+    # for i in range(gg -1)
+    # #             x_start = polygon_lg(n,1);
+    #     x_start = polygon_lg[i][0]
+    # #             x_end = polygon_lg(n+1,1);
+    #     x_end = polygon_lg[i + 1][0]
+    # #             y_start = polygon_lg(n,2);
+    #     y_start = polygon_lg[i][1]
+    # #             y_end = polygon_lg(n+1,2);
+    #     y_end = polygon_lg[i + 1][1]
+    # #             xy1 = [x_start, y_start];
+    #     xy1 = [x_start, y_start]
+    # #             xy2 = [x_end, y_end];
+    #     xy2 = [x_end, y_end]
+    #               # TODO: translate below (skipping because of MTEX use in loop)
+    # #             [xi, yi] = grains.boundary.intersect(xy1, xy2);
+    # #             x1 = xi(~isnan(xi));
+    # #             y1 = yi(~isnan(yi));
+    # #             intersect_coords_lg = [x1',y1'];
+    # #             %scatter(intersect_coords_lg(:,1),intersect_coords_lg(:,2),'w','linewidth',2)
+    # #             num_int_lg(n) = numel(x1);
+    # #             abrams_intersections_lg = cat(1, abrams_intersections_lg, intersect_coords_lg);
+    # #         end % line intersection loop
+    # #         abramsIntCount_lg = sum(num_int_lg)-1;
+
+    num_int_lg = loadmat("GS_Meas\\abrams_num_int_lg.mat")
+    num_int_lg = num_int_lg["num_int_lg"]
+    abramsIntCount_lg = sum(num_int_lg) - 1
+
+    # Plotting the medium circle:
+    # Approximate a circle as a polygon
     #         % offset = 0.02; % 2pct inset from edges
     #         xcenter = 0.5 * (max(ebsd.x) - min(ebsd.x));
     #         ycenter = 0.5 * (max(ebsd.y) - min(ebsd.y));
@@ -959,13 +1006,24 @@ def GrainSize_E112_Abrams(ebsd):
     #         % xres = 2.0 * xcenter / length(ebsd.x);
     #         % yres = 2.0 * ycenter / length(ebsd.y);
     #         circumference_med = circumference_lg / 1.5;
+    circumference_med = circumference_lg / 1.5
     #         radius_med = circumference_med / (2 * pi);
+    radius_med = circumference_med / (2 * np.pi)
     #         % inset = max(numel(ebsd.x) * offset * xres, numel(ebsd.y) * offset * yres);
     #         radius_med = radius_med - inset; % inset from the edges of the scan
+    radius_med = radius_med - inset  # Inset from the edges of the scan
     #         circ_x_med = radius_med * cos(thetas) + xcenter;
+    circ_x_med = radius_med * np.cos(thetas) + xcenter
     #         circ_y_med = radius_med * sin(thetas) + ycenter;
+    circ_y_med = radius_med * np.sin(thetas) + ycenter
     #         polygon_med = [circ_x_med' circ_y_med'];
-    #
+    for i in range(len(circ_x_med)):
+        if i == 0:
+            polygon_med = np.array([circ_x_med[i], circ_y_med[i]])
+        else:
+            coords = np.array([circ_x_med[i], circ_y_med[i]])
+            polygon_med = np.vstack((polygon_med, coords))
+
     # %         plot(circ_x_med,circ_y_med, 'k', 'linewidth', 3)
     # %         hold on
     #
@@ -1173,6 +1231,6 @@ if __name__ == '__main__':
     # print(f"G_Hilliard = {G_Hilliard}, hilliardIntCount = {hilliardIntCount}, hilliard_lbar = {hilliard_lbar}, hilliardCircumference = {hilliardCircumference}")
     # TODO: Inactive translation due to MTEX interaction in for loop
     G_Abrams, abramsIntCount, abrams_lbar, abramsCircumference = GrainSize_E112_Abrams(myEBSD)
-    print(G_Abrams, abramsIntCount, abrams_lbar, abramsCircumference)
+    # print(G_Abrams, abramsIntCount, abrams_lbar, abramsCircumference)
     # G_largestGrain, volFraction = GrainSize_E930_ALA(myEBSD, G_S)   # Verified output matches MATLAB (Requires changing inputs within grainsize_areas_planimetric)
     # print(G_largestGrain, volFraction)
