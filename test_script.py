@@ -697,7 +697,7 @@ def GrainSize_E112_Hilliard(ebsd):
     # stepsize = 2*abs(ebsd.unitCell(1,1));
     stepsize = 2 * abs(unitCell['myUnitCell'][0][0])
 
-    # % extract triple points
+    # Extract triple points
     # tP = grains.triplePoints;
     # x_tP = tP.x;
     x_tP = loadmat("GS_Meas\\myEBSD_high_res_1_x_tp.mat")
@@ -716,8 +716,9 @@ def GrainSize_E112_Hilliard(ebsd):
     ntpoints = np.shape(tpoint)
     # ntpoints = ntpoints(1);
     ntpoints = ntpoints[0]
-    # %--- generating the circle
-    # % approximate a circle as a polygon
+
+    # Generating the circle
+    # Approximate a circle as a polygon
     # offset = 0.02; % 2pct inset from edges
     offset = 0.02  # 2 percent inset from edges
     # xcenter = 0.5 * (max(ebsd.x) - min(ebsd.x));
@@ -748,36 +749,44 @@ def GrainSize_E112_Hilliard(ebsd):
         else:
             coords = np.array([circ_x[i], circ_y[i]])
             hilliardPolygon = np.vstack((hilliardPolygon, coords))
-    # %--- generating the points where the line and the grain boundary intersect
+
+    # Generating the points where the line and the grain boundary intersect
     # hilliard_intersections = [];
     hilliard_intersections = []
-    # for n = 1:length(thetas)-1
-    for i in range(0, len(thetas)-1):
-    #     x_start = hilliardPolygon(n,1);
-        x_start = hilliardPolygon[i][0]
-    #     x_end = hilliardPolygon(n+1,1);
-        x_end = hilliardPolygon[i+1][0]
-    #     y_start = hilliardPolygon(n,2);
-        y_start = hilliardPolygon[i][1]
-    #     y_end = hilliardPolygon(n+1,2);
-        y_end = hilliardPolygon[i+1][1]
-    #     xy1 = [x_start, y_start];
-        xy1 = [x_start, y_start]
-    #     xy2 = [x_end, y_end];
-        xy2 = [x_end, y_end]
-        # TODO: translate below (skipping because of MTEX use in loop)
-    #     [xi, yi] = grains.boundary.intersect(xy1, xy2);
-    #     x1 = xi(~isnan(xi));
-    #     y1 = yi(~isnan(yi));
-    #     intersect_coords = [x1',y1'];
-    #     num_int(n) = numel(x1);
-    #     hilliard_intersections = cat(1, hilliard_intersections, intersect_coords);
+    # # for n = 1:length(thetas)-1
+    # for i in range(0, len(thetas)-1):
+    # #     x_start = hilliardPolygon(n,1);
+    #     x_start = hilliardPolygon[i][0]
+    # #     x_end = hilliardPolygon(n+1,1);
+    #     x_end = hilliardPolygon[i+1][0]
+    # #     y_start = hilliardPolygon(n,2);
+    #     y_start = hilliardPolygon[i][1]
+    # #     y_end = hilliardPolygon(n+1,2);
+    #     y_end = hilliardPolygon[i+1][1]
+    # #     xy1 = [x_start, y_start];
+    #     xy1 = [x_start, y_start]
+    # #     xy2 = [x_end, y_end];
+    #     xy2 = [x_end, y_end]
+    #     # TODO: translate below (skipping because of MTEX use in loop)
+    # #     [xi, yi] = grains.boundary.intersect(xy1, xy2);
+    # #     x1 = xi(~isnan(xi));
+    # #     y1 = yi(~isnan(yi));
+    # #     intersect_coords = [x1',y1'];
+    # #     num_int(n) = numel(x1);
+    # #     hilliard_intersections = cat(1, hilliard_intersections, intersect_coords);
 
-    # hilliardIntCount = sum(num_int)-1;
-    #
-    # % calculate the distance between intersection points and triple points
+    num_int = loadmat("GS_Meas\\hilliard_num_int.mat")
+    num_int = num_int["num_int"][0]
+    hilliardIntCount = sum(num_int) - 1
+
+    hilliard_intersections = loadmat("GS_Meas\\hilliard_intersections.mat")
+    hilliard_intersections = hilliard_intersections["hilliard_intersections"]
+
+    # Calculate the distance between intersection points and triple points
     # triplept_intersection_coordinates = [];
+    triplept_intersection_coordinates = []
     # tp_thresh = 1.0; % multiples of step size
+    tp_thresh = 1.0  # multiples of step size
     # for m = 1:ntpoints
     #     % distance in microns:
     #     dist = sqrt((tpoint(m,1) - hilliard_intersections(1:end,1)).^2 + ...
@@ -790,28 +799,48 @@ def GrainSize_E112_Hilliard(ebsd):
     #     ycoord = coord(:, 2);
     #     triplept_intersection_coordinates = cat(1, triplept_intersection_coordinates, [xcoord, ycoord]);
     # end % triple point distance loop
-    # % get the count of intersections through the triple points (from xcoord
-    # % and ycoord)
+
+    for m in range(ntpoints):
+        # Distance in microns
+        dist = np.sqrt(((tpoint[m, 0] - hilliard_intersections[:, 0]) ** 2) + ((tpoint[m, 1] - hilliard_intersections[:, 1]) ** 2)) * tp_thresh * stepsize
+
+        # Find the distance under threshold and use that as an index into xyints:
+        current_coord = hilliard_intersections[dist < stepsize]
+        if len(current_coord) != 0:
+            for i in range(len(current_coord)):
+                coord = current_coord[i]
+                xcoord = coord[:][0]
+                ycoord = coord[:][1]
+                if len(triplept_intersection_coordinates) == 0:
+                    triplept_intersection_coordinates = np.array([xcoord, ycoord])
+                else:
+                    triplept_intersection_coordinates = np.vstack([triplept_intersection_coordinates, np.array([xcoord, ycoord])])
+
+    # Get the count of intersections through the triple points (from xcoord and ycoord)
     # xc = triplept_intersection_coordinates(:,1);
+    xc = triplept_intersection_coordinates[:, 0]
     # yc = triplept_intersection_coordinates(:,2);
+    yc = triplept_intersection_coordinates[:, 1]
     # hilliardTPcount = numel(xc)-1;
-    #
-    # % % get the count of intersections through the triple points (from xcoord
-    # % % and ycoord)
+    hilliardTPcount = len(xc) - 1
+
+    # Get the count of intersections through the triple points (from xcoord and ycoord)
     # % tpcount = numel(xcoord);
-    #
-    # % Add 0.5 counts for each time the line goes through a triple point
+
+    # Add 0.5 counts for each time the line goes through a triple point
     # hilliardIntCount = hilliardIntCount + 0.5*hilliardTPcount;
-    #
-    # % mean lineal intercept = circumference of circle / number of grains
-    # % intersecting circle
+    hilliardIntCount = hilliardIntCount + (0.5 * hilliardTPcount)
+
+    # mean lineal intercept = circumference of circle / number of grains intersecting circle
     # hilliard_lbar = (2*pi*radius) / hilliardIntCount;
-    #
+    hilliard_lbar = (2 * np.pi * radius) / hilliardIntCount
+
     # G_PL = G_meanintl(hilliardIntCount);
-    #
+    G_PL = G_meanintl(hilliardIntCount)
+
     # circumference = 2.0 * pi * radius;
-    #
-    # %%
+    circumference = 2.0 * np.pi * radius
+
     # % Plotting Subfunction
     #     if ismember('PlotResults',varargin)
     #         %--- plot the grains and grain boundaries
@@ -1139,11 +1168,11 @@ if __name__ == '__main__':
     # TODO: Incomplete translation due to randlin function
     # G_PL, P_L, PL_intersection_count, nlines, Heyn_total_line_length = GrainSize_E112_HeynRandomLinePL(myEBSD)
     # print(G_PL, P_L, PL_intersection_count, nlines, Heyn_total_line_length)
+    # TODO: Incomplete translation due to MTEX interaction in for loop
+    # G_Hilliard, hilliardIntCount, hilliard_lbar, hilliardCircumference = GrainSize_E112_Hilliard(myEBSD)  # Verified output
+    # print(f"G_Hilliard = {G_Hilliard}, hilliardIntCount = {hilliardIntCount}, hilliard_lbar = {hilliard_lbar}, hilliardCircumference = {hilliardCircumference}")
     # TODO: Inactive translation due to MTEX interaction in for loop
-    # G_Hilliard, hilliardIntCount, hilliard_lbar, hilliardCircumference = GrainSize_E112_Hilliard(myEBSD)
-    # print(G_Hilliard, hilliardIntCount, hilliard_lbar, hilliardCircumference)
-    # TODO: Inactive translation due to MTEX interaction in for loop
-    # G_Abrams, abramsIntCount, abrams_lbar, abramsCircumference = GrainSize_E112_Abrams(myEBSD)
-    # print(G_Abrams, abramsIntCount, abrams_lbar, abramsCircumference)
+    G_Abrams, abramsIntCount, abrams_lbar, abramsCircumference = GrainSize_E112_Abrams(myEBSD)
+    print(G_Abrams, abramsIntCount, abrams_lbar, abramsCircumference)
     # G_largestGrain, volFraction = GrainSize_E930_ALA(myEBSD, G_S)   # Verified output matches MATLAB (Requires changing inputs within grainsize_areas_planimetric)
     # print(G_largestGrain, volFraction)
