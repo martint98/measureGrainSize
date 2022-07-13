@@ -901,7 +901,6 @@ def GrainSize_E112_Abrams(ebsd):
     # x_tP = tP.x;
     x_tP = loadmat("GS_Meas\\myEBSD_high_res_1_x_tp.mat")
     x_tP = x_tP['x_tP']
-    print(x_tP)
     # y_tP = tP.y;
     y_tP = loadmat("GS_Meas\\myEBSD_high_res_1_y_tp.mat")
     y_tP = y_tP['y_tP']
@@ -969,7 +968,7 @@ def GrainSize_E112_Abrams(ebsd):
     #         abrams_intersections_lg = [];
     abrams_intersections_lg = []
     # #         for n = 1:gg-1
-    # for i in range(gg -1)
+    # for i in range(gg - 1):
     # #             x_start = polygon_lg(n,1);
     #     x_start = polygon_lg[i][0]
     # #             x_end = polygon_lg(n+1,1);
@@ -993,8 +992,10 @@ def GrainSize_E112_Abrams(ebsd):
     # #         end % line intersection loop
     # #         abramsIntCount_lg = sum(num_int_lg)-1;
 
+    abrams_intersections_lg = loadmat("GS_Meas\\abrams_intersections_lg.mat")
+    abrams_intersections_lg = abrams_intersections_lg["abrams_intersections_lg"]
     num_int_lg = loadmat("GS_Meas\\abrams_num_int_lg.mat")
-    num_int_lg = num_int_lg["num_int_lg"]
+    num_int_lg = num_int_lg["num_int_lg"][0]
     abramsIntCount_lg = sum(num_int_lg) - 1
 
     # Plotting the medium circle:
@@ -1026,30 +1027,47 @@ def GrainSize_E112_Abrams(ebsd):
 
     # %         plot(circ_x_med,circ_y_med, 'k', 'linewidth', 3)
     # %         hold on
-    #
+
     #         g = size(polygon_med);
+    g = np.shape(polygon_med)
     #         gg = g(1);
-    #
+    gg = g[0]
+
     #         abrams_intersections_med = [];
-    #         for n = 1:gg-1
-    #             x_start = polygon_med(n,1);
-    #             x_end = polygon_med(n+1,1);
-    #             y_start = polygon_med(n,2);
-    #             y_end = polygon_med(n+1,2);
-    #             xy1 = [x_start, y_start];
-    #             xy2 = [x_end, y_end];
-    #             [xi, yi] = grains.boundary.intersect(xy1, xy2);
-    #             x1 = xi(~isnan(xi));
-    #             y1 = yi(~isnan(yi));
-    #             intersect_coords_med = [x1',y1'];
-    #             %scatter(intersect_coords_med(:,1),intersect_coords_med(:,2),'w','linewidth',2)
-    #             num_int_med(n) = numel(x1);
-    #             abrams_intersections_med = cat(1, abrams_intersections_med, intersect_coords_med);
-    #         end % line intersection loop
-    #         abramsIntCount_med = sum(num_int_med)-1;
-    #
-    # %--- plotting the smallest circle
-    #         % approximate a circle as a polygon
+    abrams_intersections_med = []
+    # #         for n = 1:gg-1
+    # for i in range(gg - 1):
+    # #             x_start = polygon_med(n,1);
+    #     x_start = polygon_med[i][0]
+    # #             x_end = polygon_med(n+1,1);
+    #     x_end = polygon_med[i + 1][0]
+    # #             y_start = polygon_med(n,2);
+    #     y_start = polygon_med[i][1]
+    # #             y_end = polygon_med(n+1,2);
+    #     y_end = polygon_med[i + 1][1]
+    # #             xy1 = [x_start, y_start];
+    #     xy1 = [x_start, y_start]
+    # #             xy2 = [x_end, y_end];
+    #     xy2 = [x_end, y_end]
+    #               # TODO: translate below (skipping because of MTEX use in loop)
+    # #             [xi, yi] = grains.boundary.intersect(xy1, xy2);
+    # #             x1 = xi(~isnan(xi));
+    # #             y1 = yi(~isnan(yi));
+    # #             intersect_coords_med = [x1',y1'];
+    # #             %scatter(intersect_coords_med(:,1),intersect_coords_med(:,2),'w','linewidth',2)
+    # #             num_int_med(n) = numel(x1);
+    # #             abrams_intersections_med = cat(1, abrams_intersections_med, intersect_coords_med);
+    # #         end % line intersection loop
+    # #         abramsIntCount_med = sum(num_int_med)-1;
+
+    abrams_intersections_med = loadmat("GS_Meas\\abrams_intersections_med.mat")
+    abrams_intersections_med = abrams_intersections_med["abrams_intersections_med"]
+    num_int_med = loadmat("GS_Meas\\abrams_num_int_med.mat")
+    num_int_med = num_int_med["num_int_med"][0]
+    abramsIntCount_med = sum(num_int_med) - 1
+
+    # Plotting the smallest circle
+    # Approximate a circle as a polygon
     #         % offset = 0.02; % 2pct inset from edges
     #         xcenter = 0.5 * (max(ebsd.x) - min(ebsd.x));
     #         ycenter = 0.5 * (max(ebsd.y) - min(ebsd.y));
@@ -1057,50 +1075,80 @@ def GrainSize_E112_Abrams(ebsd):
     #         % xres = 2.0 * xcenter / length(ebsd.x);
     #         % yres = 2.0 * ycenter / length(ebsd.y);
     #         circumference_sm = circumference_lg / 3;
+    circumference_sm = circumference_lg / 3
     #         radius_sm = circumference_sm / (2 * pi);
+    radius_sm = circumference_sm / (2 * np.pi)
     #         % inset = max(numel(ebsd.x) * offset * xres, numel(ebsd.y) * offset * yres);
     #         radius_sm = radius_sm - inset; % inset from the edges of the scan
+    radius_sm = radius_sm - inset  # Inset from the edges of the scan
     #         circ_x_sm = radius_sm * cos(thetas) + xcenter;
+    circ_x_sm = radius_sm * np.cos(thetas) + xcenter
     #         circ_y_sm = radius_sm * sin(thetas) + ycenter;
+    circ_y_sm = radius_sm * np.sin(thetas) + ycenter
     #         polygon_sm = [circ_x_sm' circ_y_sm'];
-    #
+    for i in range(len(circ_x_sm)):
+        if i == 0:
+            polygon_sm = np.array([circ_x_sm[i], circ_y_sm[i]])
+        else:
+            coords = np.array([circ_x_sm[i], circ_y_sm[i]])
+            polygon_sm = np.vstack((polygon_sm, coords))
+
     # %         plot(circ_x_sm,circ_y_sm, 'k', 'linewidth', 3)
     # %         hold on
     #
     #         g = size(polygon_sm);
+    g = np.shape(polygon_sm)
     #         gg = g(1);
-    #
+    gg = g[0]
+
     #         abrams_intersections_sm = [];
-    #         for n = 1:gg-1
-    #             x_start = polygon_sm(n,1);
-    #             x_end = polygon_sm(n+1,1);
-    #             y_start = polygon_sm(n,2);
-    #             y_end = polygon_sm(n+1,2);
-    #             xy1 = [x_start, y_start];
-    #             xy2 = [x_end, y_end];
-    #             [xi, yi] = grains.boundary.intersect(xy1, xy2);
-    #             x1 = xi(~isnan(xi));
-    #             y1 = yi(~isnan(yi));
-    #             intersect_coords_sm = [x1',y1'];
-    # %             scatter(intersect_coords_sm(:,1),intersect_coords_sm(:,2),'w','linewidth',2)
-    #             num_int_sm(n) = numel(x1);
-    #             abrams_intersections_sm = cat(1, abrams_intersections_sm, intersect_coords_sm);
-    #         end % line intersection loop
-    #         abramsIntCount_sm = sum(num_int_sm)-1;
-    #
-    # % Concatenating polygon data
+    abrams_intersections_sm = []
+    # #         for n = 1:gg-1
+    # for i in range(gg - 1):
+    # #             x_start = polygon_sm(n,1);
+    # x_start = polygon_sm[i][0]
+    # #             x_end = polygon_sm(n+1,1);
+    # x_end = polygon_sm[i + 1][0]
+    # #             y_start = polygon_sm(n,2);
+    # y_start = polygon_sm[i][1]
+    # #             y_end = polygon_sm(n+1,2);
+    # y_end = polygon_sm[i + 1][1]
+    # #             xy1 = [x_start, y_start];
+    # xy1 = [x_start, y_start]
+    # #             xy2 = [x_end, y_end];
+    # xy2 = [x_end, y_end]
+    #                # TODO: translate below (skipping because of MTEX use in loop)
+    # #             [xi, yi] = grains.boundary.intersect(xy1, xy2);
+    # #             x1 = xi(~isnan(xi));
+    # #             y1 = yi(~isnan(yi));
+    # #             intersect_coords_sm = [x1',y1'];
+    # # %             scatter(intersect_coords_sm(:,1),intersect_coords_sm(:,2),'w','linewidth',2)
+    # #             num_int_sm(n) = numel(x1);
+    # #             abrams_intersections_sm = cat(1, abrams_intersections_sm, intersect_coords_sm);
+    # #         end % line intersection loop
+    # #         abramsIntCount_sm = sum(num_int_sm)-1;
+
+    abrams_intersections_sm = loadmat("GS_Meas\\abrams_intersections_sm.mat")
+    abrams_intersections_sm = abrams_intersections_sm["abrams_intersections_sm"]
+    num_int_sm = loadmat("GS_Meas\\abrams_num_int_sm.mat")
+    num_int_sm = num_int_sm["num_int_sm"][0]
+    abramsIntCount_sm = sum(num_int_sm) - 1
+
+    # Concatenating polygon data
     # % abramsPolygon = cat(1, abramsPolygon, polygon_sm, polygon_med, polygon_lg);
     # % g = size(abramsPolygon);
     # % gg = g(1);
-    #
+
     # abrams_intersections = cat(1, abrams_intersections_sm, abrams_intersections_med, ...
     #     abrams_intersections_lg);
-    #
-    #
-    #
-    # % calculate the distance between intersection points and triple points
+
+    abrams_intersections = np.vstack([abrams_intersections_sm, abrams_intersections_med, abrams_intersections_lg])
+
+    # Calculate the distance between intersection points and triple points
     #     triplept_intersection_coordinates = [];
+    triplept_intersection_coordinates = []
     #     tp_thresh = 1.0; % multiples of step size
+    tp_thresh = 1.0  # Multiples of step size
     #     for m = 1:ntpoints
     #         % distance in microns:
     #         dist = sqrt((tpoint(m,1) - abrams_intersections(1:end,1)).^2 + ...
@@ -1113,29 +1161,52 @@ def GrainSize_E112_Abrams(ebsd):
     #         ycoord = coord(:, 2);
     #         triplept_intersection_coordinates = cat(1, triplept_intersection_coordinates, [xcoord, ycoord]);
     #     end % triple point distance loop
-    # % get the count of intersections through the triple points (from xcoord
-    # % and ycoord)
-    #
+
+    for m in range(ntpoints):
+        # Distance in microns
+        dist = np.sqrt(((tpoint[m, 0] - abrams_intersections[:, 0]) ** 2) + ((tpoint[m, 1] - abrams_intersections[:, 1]) ** 2)) * tp_thresh * stepsize
+
+        # Find the distance under threshold and use that as an index into xyints:
+        current_coord = abrams_intersections[dist < stepsize]
+        if len(current_coord) != 0:
+            for i in range(len(current_coord)):
+                coord = current_coord[i]
+                xcoord = coord[:][0]
+                ycoord = coord[:][1]
+                if len(triplept_intersection_coordinates) == 0:
+                    triplept_intersection_coordinates = np.array([xcoord, ycoord])
+                else:
+                    triplept_intersection_coordinates = np.vstack([triplept_intersection_coordinates, np.array([xcoord, ycoord])])
+
+
+    # Get the count of intersections through the triple points (from xcoord and ycoord)
     # xc = triplept_intersection_coordinates(:,1);
+    xc = triplept_intersection_coordinates[:, 0]
     # yc = triplept_intersection_coordinates(:,2);
+    yc = triplept_intersection_coordinates[:, 1]
     # % hold on
     # % scatter(xc,yc,'r','linewidth',2)
-    #
+
     # abramsTPcount = numel(xc)-1;
-    #
+    abramsTPcount = len(xc) - 1
+
     # abramsIntCount = abramsIntCount_sm + abramsIntCount_med + abramsIntCount_lg;
-    #
+    abramsIntCount = abramsIntCount_sm + abramsIntCount_med + abramsIntCount_lg
     # abramsIntCount = abramsIntCount + abramsTPcount;
-    #
-    # % Total line length = total circumference of circles
+    abramsIntCount = abramsIntCount + abramsTPcount
+
+    # Total line length = total circumference of circles
     # abramsCircumference_tot = circumference_lg + circumference_med + circumference_sm;
-    #
+    abramsCircumference_tot = circumference_lg + circumference_med + circumference_sm
+
     # N_L = abramsIntCount / abramsCircumference_tot;
+    N_L = abramsIntCount / abramsCircumference_tot
     # abrams_lbar = 1/N_L;
-    #
+    abrams_lbar = 1/N_L
+
     # G_PL = G_meanintl(N_L);
-    #
-    # end
+    G_PL = G_meanintl(N_L)
+
     return G_PL, abramsIntCount, abrams_lbar, abramsCircumference_tot
 
 def GrainSize_E930_ALA(ebsd, G2):
@@ -1229,8 +1300,8 @@ if __name__ == '__main__':
     # TODO: Incomplete translation due to MTEX interaction in for loop
     # G_Hilliard, hilliardIntCount, hilliard_lbar, hilliardCircumference = GrainSize_E112_Hilliard(myEBSD)  # Verified output
     # print(f"G_Hilliard = {G_Hilliard}, hilliardIntCount = {hilliardIntCount}, hilliard_lbar = {hilliard_lbar}, hilliardCircumference = {hilliardCircumference}")
-    # TODO: Inactive translation due to MTEX interaction in for loop
-    # G_Abrams, abramsIntCount, abrams_lbar, abramsCircumference = GrainSize_E112_Abrams(myEBSD)
-    # print(G_Abrams, abramsIntCount, abrams_lbar, abramsCircumference)
+    # TODO: Incomplete translation due to MTEX interaction in for loop
+    # G_Abrams, abramsIntCount, abrams_lbar, abramsCircumference = GrainSize_E112_Abrams(myEBSD)    # Verified output
+    # print(f"G_Abrams = {G_Abrams}, abramsIntCount = {abramsIntCount}, abrams_lbar = {abrams_lbar}, abramsCircumference = {abramsCircumference}")
     # G_largestGrain, volFraction = GrainSize_E930_ALA(myEBSD, G_S)   # Verified output matches MATLAB (Requires changing inputs within grainsize_areas_planimetric)
     # print(G_largestGrain, volFraction)
