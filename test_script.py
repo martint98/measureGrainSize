@@ -7,7 +7,6 @@ import warnings
 from scipy.io import loadmat
 import h5py
 import numpy as np
-import pandas as pd
 
 
 class Dstruct:
@@ -103,6 +102,7 @@ def load_d3d_slice(dstruct, sliceindex, plane_normal):
     #
     # return ebsd
 
+
 def G_numgrain(N_A):
     # ASTM grain size as a function of the number of grains per unit area
     # See Planimetric or Jeffries' procedures in ASTM E 112
@@ -112,15 +112,16 @@ def G_numgrain(N_A):
 
     return G
 
+
 def G_meanbarA(bar_A):
     # Calculating ASTM grain size as a function of the mean cross-sectional
     # area of grains not bordering the edge
 
     # Note from MATLAB (keeping for now)
     # bar_A was previously calculated:
-        # ar = area(grains)  --area of each individual grain
-        # ngrains = numel(ar)  --number of grains detected
-        # bar_A = sum(ar)/ngrains  --mean value of grain area
+    # ar = area(grains)  --area of each individual grain
+    # ngrains = numel(ar)  --number of grains detected
+    # bar_A = sum(ar)/ngrains  --mean value of grain area
 
     A = 2.0*np.log2(254.0)+1.0
     B = 1.0/(np.log10(2.0))
@@ -128,19 +129,18 @@ def G_meanbarA(bar_A):
 
     return G2
 
-def G_meanintl(u):
-# Calculate the ASTM grain size as a function of mean intercept length
 
-# mean intercept length was previously calculated:
-#     %---- calculating the average intercept length
-# %         ints = xync(:,5)  --extracting number of intercept lines
-# %         z = sum(ints)  --total number of intercept lines
-# %
-# %         intl = linints(:,1)  --extracting the intercept lengths
-# %         q = sum(intl)  --total of intercept lengths
-# %
-# %         % calculating the mean intercept length:
-# %         u = q / z  --total of int lengths / total number of intercepts
+def G_meanintl(u):
+    # Calculate the ASTM grain size as a function of mean intercept length
+
+    # mean intercept length was previously calculated:
+    # Calculating the average intercept length
+    # ints = xync(:,5)  --extracting number of intercept lines
+    # z = sum(ints)  --total number of intercept lines
+    # intl = linints(:,1)  --extracting the intercept lengths
+    # q = sum(intl)  --total of intercept lengths
+    # Calculating the mean intercept length:
+    # u = q / z  --total of int lengths / total number of intercepts
 
     A = 2.0 * np.log2(320.0)
     B = 2.0 / np.log10(2.0)
@@ -148,6 +148,7 @@ def G_meanintl(u):
     G = A - B * np.log10(u)
 
     return G
+
 
 def grainsize_areas_planimetric(polygon):
     # Perform segmentation
@@ -185,6 +186,7 @@ def grainsize_areas_planimetric(polygon):
     G_A = G_meanbarA(Abar)
     return G_N, N_A_counted, N
 
+
 def get_polygon_area_shoelace_formula(x, y):
     # TODO: Make get_polygon_area_shoelace_formula capable of the below MATLAB polyarea functionality
     # If x and y are vectors of the same length, then polyarea returns the scalar area of the polygon defined by x and y
@@ -199,6 +201,7 @@ def get_polygon_area_shoelace_formula(x, y):
     # print(f"poly area = {area}")
     return area
 
+
 def GrainSize_E112_SaltikovPlanimetric(ebsd):
     # Saltikov's Planimetric: Count of grains in a test rectangle
     # Grains completely enclosed count as 1, those intercepted by the rectangle
@@ -212,9 +215,9 @@ def GrainSize_E112_SaltikovPlanimetric(ebsd):
     yinset = len(ebsd.y) * offset * yres
 
     polygon = np.asarray([[(min(ebsd.x) + xinset)[0], (min(ebsd.y) + yinset)[0]],
-               [(min(ebsd.x) + xinset)[0], (max(ebsd.y) - yinset)[0]],
-               [(max(ebsd.x) - xinset)[0], (max(ebsd.y) - yinset)[0]],
-               [(max(ebsd.x) - xinset)[0], (min(ebsd.y) + yinset)[0]]])
+                          [(min(ebsd.x) + xinset)[0], (max(ebsd.y) - yinset)[0]],
+                          [(max(ebsd.x) - xinset)[0], (max(ebsd.y) - yinset)[0]],
+                          [(max(ebsd.x) - xinset)[0], (min(ebsd.y) + yinset)[0]]])
 
     # [G_N, ~, N_A, N, ~, ~, inside_grains2, edge_grains2, ~] = grainsize_areas_planimetric(ebsd, polygon, varargin{:});
     G_N, N_A, N = grainsize_areas_planimetric(polygon)
@@ -229,6 +232,7 @@ def GrainSize_E112_SaltikovPlanimetric(ebsd):
 
     return G_N, N_A, N
 
+
 def GrainSize_E2627_AsWritten(ebsd):
     # function [G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas] = GrainSize_E2627_AsWritten(ebsd, varargin)
     # Perform ASTM E2627 measurement as written (minimum grain size 100 px)
@@ -238,6 +242,7 @@ def GrainSize_E2627_AsWritten(ebsd):
     G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas = GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain)
 
     return G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas
+
 
 def GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain):
     # function [G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas] = GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain, varargin)
@@ -255,8 +260,8 @@ def GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain):
     # based method, we want to reject the grains that touch the edges of the
     # EBSD scan.
     offset = 0.0  # zeroed out
-    xres = (max((ebsd.x) - min(ebsd.x))) / len(ebsd.x)
-    yres = (max(ebsd.y) - min(ebsd.y)) / len(ebsd.y)
+    xres = max(ebsd.x) - min(ebsd.x) / len(ebsd.x)
+    yres = max(ebsd.y) - min(ebsd.y) / len(ebsd.y)
     xinset = len(ebsd.x) * offset * xres
     yinset = len(ebsd.y) * offset * yres
 
@@ -318,6 +323,7 @@ def GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain):
 
     return G_A, Abar, n, N_A_measured[0], avg_px_per_grain_before_threshold, areas
 
+
 def GrainSize_E112_JeffriesPlanimetric(ebsd):
     # Jeffries' Planimetric: Count of grains in a test circle
     # Grains completely enclosed count as 1, those intercepted by the circle count by half.
@@ -352,6 +358,7 @@ def GrainSize_E112_JeffriesPlanimetric(ebsd):
     #     plot(polygon(:,1), polygon(:,2), 'k', 'linewidth', 3)
 
     return G_N, N_A, N
+
 
 def grainsize_linint_random(ebsd, min_intercepts):
     # function [G_L, G_PL, MLI, MIC, grains, intercept_lengths, gb_intersection_coordinates, line_intersection_results, triplept_intersection_coordinates, nlines, total_line_length] = grainsize_linint_random(ebsd, min_intercepts, varargin)
@@ -428,6 +435,7 @@ def grainsize_linint_random(ebsd, min_intercepts):
 
     return G_L, G_PL, MLI, MIC, grains, intercept_lengths, gb_intersection_coordinates, line_intersection_results, triplept_intersection_coordinates, nlines, total_line_length
 
+
 def smooth(a, WSZ):
     out0 = np.convolve(a, np.ones(WSZ, dtype=int), 'valid')/WSZ
     r = np.arange(1, WSZ-1, 2)
@@ -435,6 +443,7 @@ def smooth(a, WSZ):
     stop = (np.cumsum(a[:-WSZ:-1])[::2]/r)[::-1]
 
     return np.concatenate((start, out0, stop))
+
 
 def randlin(ebsd, n, grains, stepsize):
     # function [P_L, total_line_length, intercept_lengths, gb_intersection_coordinates, line_intersection_results, triplept_intersection_coordinates] = randlin(ebsd, n, grains, stepsize, varargin)
@@ -747,6 +756,7 @@ def randlin(ebsd, n, grains, stepsize):
 
     return P_L, total_line_length, intercept_lengths, gb_intersection_coordinates, line_intersection_results, triplept_intersection_coordinates
 
+
 def GrainSize_E112_HeynRandomLineMLI(ebsd):
     # function [G_L, lbar, n, intercept_lengths] = GrainSize_E112_HeynRandomLineMLI(ebsd, varargin)
 
@@ -770,6 +780,7 @@ def GrainSize_E112_HeynRandomLinePL(ebsd):
     intersection_count = total_line_length / MIC
 
     return G_PL, MIC, intersection_count, nlines, total_line_length
+
 
 def GrainSize_E112_Hilliard(ebsd):
     # function [G_PL, hilliardIntCount, hilliard_lbar, circumference] = GrainSize_E112_Hilliard(ebsd, varargin)
@@ -970,6 +981,7 @@ def GrainSize_E112_Hilliard(ebsd):
 
     return G_PL, hilliardIntCount, hilliard_lbar, circumference
 
+
 def GrainSize_E112_Abrams(ebsd):
     # function [G_PL, abramsIntCount, abrams_lbar, abramsCircumference_tot] = GrainSize_E112_Abrams(ebsd)
     # Abrams Three-Circle Procedure: Three concentric and equally spaced
@@ -986,7 +998,6 @@ def GrainSize_E112_Abrams(ebsd):
     # % hold on
     # % plot(grains.boundary,'LineWidth',1); % plot the grain boundaries
     # % hold on
-
 
     unitCell = loadmat("GS_Meas\\myEBSD_high_res_1_unit_cell.mat")
     # stepsize = 2*abs(ebsd.unitCell(1,1));
@@ -1014,7 +1025,6 @@ def GrainSize_E112_Abrams(ebsd):
 
     # Plot triple points
     # % plot(tP,'color','b','linewidth',2); hold on
-
 
     # Plotting the largest circle:
     # Approximate a circle as a polygon
@@ -1274,7 +1284,6 @@ def GrainSize_E112_Abrams(ebsd):
                 else:
                     triplept_intersection_coordinates = np.vstack([triplept_intersection_coordinates, np.array([xcoord, ycoord])])
 
-
     # Get the count of intersections through the triple points (from xcoord and ycoord)
     # xc = triplept_intersection_coordinates(:,1);
     xc = triplept_intersection_coordinates[:, 0]
@@ -1304,6 +1313,7 @@ def GrainSize_E112_Abrams(ebsd):
     G_PL = G_meanintl(N_L)
 
     return G_PL, abramsIntCount, abrams_lbar, abramsCircumference_tot
+
 
 def GrainSize_E930_ALA(ebsd, G2):
     # function [G_largestGrain, volFraction] = GrainSize_E930_ALA(ebsd, G2, varargin)
