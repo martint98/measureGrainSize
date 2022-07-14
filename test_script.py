@@ -2,6 +2,7 @@
 # Author: Tyler Martin
 # Date: 6/14/2022
 ################################
+import math
 import warnings
 from scipy.io import loadmat
 import h5py
@@ -436,8 +437,6 @@ def smooth(a, WSZ):
     return np.concatenate((start, out0, stop))
 
 def randlin(ebsd, n, grains, stepsize):
-    # TODO: Translate (skipping for now due to loop containing MTEX usage)
-
     # function [P_L, total_line_length, intercept_lengths, gb_intersection_coordinates, line_intersection_results, triplept_intersection_coordinates] = randlin(ebsd, n, grains, stepsize, varargin)
     # % Generate random lines on EBSD map and measure intersections and intercept
     # % lengths for lineal intercept grain size measurements
@@ -489,39 +488,52 @@ def randlin(ebsd, n, grains, stepsize):
     # Have mtex get the coordinates of triple points
     # tP = grains.triplePoints;
     # xii = tP.x;
+    x_tP = loadmat("GS_Meas\\myEBSD_high_res_1_x_tp.mat")
+    x_tP = x_tP['x_tP']
     # yii = tP.y;
+    y_tP = loadmat("GS_Meas\\myEBSD_high_res_1_y_tp.mat")
+    y_tP = y_tP['y_tP']
     # tpoint = [xii, yii];
+    for i in range(len(x_tP)):
+        if i == 0:
+            tpoint = np.array([x_tP[i][0], y_tP[i][0]])
+        else:
+            coords = np.array([x_tP[i][0], y_tP[i][0]])
+            tpoint = np.vstack((tpoint, coords))
     # ntpoints = size(tpoint);
+    ntpoints = np.shape(tpoint)
     # ntpoints = ntpoints(1);
-    #
-    # % Get scan dimensions
+    ntpoints = ntpoints[0]
+
+    # Get scan dimensions
     # xdim_max = ceil(max(grains.x)); % maximum x-dimension
+    xdim_max = math.ceil(max(ebsd.x))  # Maximum x-dimension
     # ydim_max = ceil(max(grains.y)); % maximum y-dimension
+    ydim_max = math.ceil(max(ebsd.y))  # Maximum y-dimension
     # xdim_min = floor(min(grains.x)); % minimum x-dimension
+    xdim_min = math.floor(min(ebsd.x))  # Minimum y-dimension
     # ydim_min = floor(min(grains.y)); % minimum y-dimension
-    #
-    # % Begin loop over desired number of random lines
+    ydim_min = math.floor(min(ebsd.y))  # Minimum y-dimension
+
+    # Begin loop over desired number of random lines
     # line_intersection_results = [];
+    line_intersection_results = []
     # gb_intersection_coordinates = []; % x-y intercepts
+    gb_intersection_coordinates = []  # x-y intercepts
     # total_line_length = 0;
+    total_line_length = 0
     # for k = 1:n
-    #
     #     % boundaries of the structure
     #     xdim = [xdim_min, xdim_max]; % x-coordinates of the boundary
     #     ydim = [ydim_min, ydim_max]; % y-coordinates of the boundary
-    #
     #     y = (ydim(2) - ydim(1)) .* rand(2,1) + ydim(1);
     #     x = (xdim(2) - xdim(1)) .* rand(2,1) + xdim(1);
     #     x2 = x(2);
     #     x1 = x(1);
     #     y2 = y(2);
     #     y1 = y(1);
-    #
-    #     % get slope and intercept of line
     #     m = (y2 - y1) / (x2 - x1);
     #     b = y2 - m * x2; % intercept from y=mx+b
-    #
-    #     % get intersections with bounding box
     #     yya = m * xdim(1) + b; % value of y at left edge on line
     #     if yya > ydim(2) % then the x1 coordinate is along top edge
     #         bbx1 = (ydim(2) - b) / m;
@@ -530,7 +542,6 @@ def randlin(ebsd, n, grains, stepsize):
     #     else % then x coordinate is the left edge
     #         bbx1 = xdim(1);
     #     end
-    #
     #     yyb = m * xdim(2) + b; % value of y at right edge on line
     #     if yyb > ydim(2) % then the x2 coordinate is along top edge
     #         bbx2 = (ydim(2) - b) / m;
@@ -539,7 +550,6 @@ def randlin(ebsd, n, grains, stepsize):
     #     else % then x coordinate is the right edge
     #         bbx2 = xdim(2);
     #     end
-    #
     #     xxa = (ydim(1) - b) / m; % value of x at y1 on line
     #     if xxa > xdim(2) % then the y1 coordinate is along right edge
     #         bby1 = xdim(2) * m + b;
@@ -548,7 +558,6 @@ def randlin(ebsd, n, grains, stepsize):
     #     else % then y coordinate is the bottom edge
     #         bby1 = ydim(1);
     #     end
-    #
     #     xxb = (ydim(2) - b) / m; % value of x on line at upper edge of bounding box
     #     if xxb > xdim(2) % then the y2 coordinate is along right edge
     #         bby2 = xdim(2) * m + b;
@@ -557,7 +566,6 @@ def randlin(ebsd, n, grains, stepsize):
     #     else % it must be the top edge
     #         bby2 = ydim(2);
     #     end
-    #
     #     % Collect our line starting and ending points and correct for slope
     #     offset = 1.0;
     #     if m>0
@@ -567,28 +575,22 @@ def randlin(ebsd, n, grains, stepsize):
     #         xy1 = [bbx1 + offset, bby2 - offset*stepsize];
     #         xy2 = [bbx2 - offset, bby1 + offset*stepsize];
     #     end
-    #
     #     % Have mtex get the intersections
     #     [xi,yi] = grains.boundary.intersect(xy1,xy2);
-    #
     #     % find the number of boundary intersection points
     #     int_count = sum(~isnan(xi));
-    #
     #     % get the x- and y-coordinates of the interceptions
     #     xx1 = xi(~isnan(xi));
     #     yy1 = yi(~isnan(yi));
     #     line_no = k * ones(size(xx1));
     #     gb_intersection_coordinates = cat(1, gb_intersection_coordinates, [xx1', yy1', line_no']);
-    #
     #     % total length of the line
     #     tot = sqrt((xy2(2) - xy1(2)).^2 + (xy2(1) - xy1(1)).^2);
     #     total_line_length = total_line_length + tot;
-    #
     #     % collate info from individual lines
     #     line_intersection_results = cat(1, line_intersection_results, [xy1(1), xy1(2), xy2(1), xy2(2), int_count, tot]);
     #
     # end % end of loop over number of lines
-    #
     # % calculate the distance between intersection points and triple points
     # triplept_intersection_coordinates = [];
     # tp_thresh = 1.0; % multiples of step size
@@ -604,11 +606,9 @@ def randlin(ebsd, n, grains, stepsize):
     #     ycoord = coord(:, 2);
     #     triplept_intersection_coordinates = cat(1, triplept_intersection_coordinates, [xcoord, ycoord]);
     # end
-    #
     # % get the count of intersections through the triple points (from xcoord
     # % and ycoord)
     # tpcount = numel(xcoord);
-    #
     # % Count the intersections: the ends count as half, hence the -1;
     # % add 0.5 counts for each time the line goes through a triple point.
     # P_L = sum(line_intersection_results(:, 5)) + 0.5 * tpcount - 1;
@@ -618,7 +618,106 @@ def randlin(ebsd, n, grains, stepsize):
     #                           gb_intersection_coordinates(2:end, 1)).^2 + ...
     #                          (gb_intersection_coordinates(1:end-1, 2) - ...
     #                           gb_intersection_coordinates(2:end, 2)).^2);
-    #
+
+    for k in range(n):
+        xdim = np.array([xdim_min, xdim_max])  # x-coordinates of the boundary
+        ydim = np.array([ydim_min, ydim_max])  # y-coordinates of the boundary
+        y = (ydim_max - ydim_min) * np.random.randint(size=(2, 1)) + ydim_min
+        x = (xdim_max - xdim_min) * np.random.randint(size=(2, 1)) + xdim_min
+        # Get slope and intercept of line
+        m = (ydim_max - ydim_min) / (xdim_max - xdim_min)
+        b = ydim_max - m + xdim_max  # Intercept from y=mx+b
+        # Get intersections with bounding box
+        yya = m * xdim_min + b  # Value of y at left edge on line
+        if yya > ydim_max:  # Then the xdim_min coordinate is along the top edge
+            bbx1 = (ydim_max - b) / m
+        elif yya < ydim_min:  # Then xdim_min coordinate is along bottom edge
+            bbx1 = (ydim_min - b) / m
+        else:  # Then x coordinate is the left edge
+            bbx1 = xdim_min
+        yyb = m * xdim_max + b  # Value of y at right edge on line
+        if yyb > ydim_max:  # Then the xdim_max coordinate is along top edge
+            bbx2 = (ydim_max - b) / m
+        elif yyb < ydim_min:  # Then xdim_max coordinate is along bottom edge
+            bbx2 = (ydim_min - b) / m
+        else:  # Then x coordinate is the right edge
+            bbx2 = xdim_max
+        xxa = (ydim_min - b) / m  # Value of x at y1 on line
+        if xxa > xdim_max:  # Then the y1 coordinate is along right edge
+            bby1 = xdim_max * m + b
+        elif xxa < xdim_min:  # Then the y2 coordinate is along left edge
+            bby1 = xdim_min * m + b
+        else:  # Then y coordinate is the bottom edge
+            bby1 = ydim_min
+        xxb = (ydim_max - b) / m  # Value of x on line at upper edge of bounding box
+        if xxb > xdim_max:  # Then the y2 coordinate is along left edge
+            bby2 = xdim_max * m + b
+        elif xxb < xdim_min:  # Then the y2 coordinate is along right edge
+            bby2 = xdim_min * m + b
+        else:  # It must be top edge
+            bby2 = ydim_max
+        # Collect our line starting and ending points and correct for slope
+        offset = 1.0
+        if m>0:
+            xy1 = np.array([bbx1, bby1]) + offset * stepsize
+            xy2 = np.array([bbx2, bby2]) - offset * stepsize
+        else:
+            xy1 = np.array([(bbx1 + offset), (bby2 - offset * stepsize)])
+            xy2 = np.array([(bbx2 - offset), (bby1 + offset * stepsize)])
+        # Have mtex get the intersections
+        # TODO: Create implementation of below
+        # [xi,yi] = grains.boundary.intersect(xy1,xy2);
+        xi = 0
+        yi = 0
+        # Find the number of boundary intersection points
+        int_count = sum(np.logical_not(np.isnan(xi)))
+        # Get the x- and y-coordinates of the interceptions
+        xx1 = xi(np.logical_not(np.isnan(xi)))
+        yy1 = yi(np.logical_not(np.isnan(yi)))
+        line_no = k * np.ones((1, len(xx1)))
+        if len(gb_intersection_coordinates) == 0:
+            gb_intersection_coordinates = np.array([np.atleast_2d(xx1).T.conj(), np.atleast_2d(yy1).T.conj(), np.atleast_2d(line_no).T.conj()])
+        else:
+            gb_intersection_coordinates = np.vstack([gb_intersection_coordinates, np.array([np.atleast_2d(xx1).T.conj(), np.atleast_2d(yy1).T.conj(), np.atleast_2d(line_no).T.conj()])])
+        # Total length of the line
+        tot = np.sqrt((xy2[1] - xy1[1]) ** 2 + (xy2[0] - xy1[0]) ** 2)
+        total_line_length = total_line_length + tot
+        # Collate info from individual lines
+        if len(line_intersection_results) == 0:
+            line_intersection_results = np.array([xy1[0], xy1[1], xy2[0], xy2[1], int_count, tot])
+        else:
+            line_intersection_results = np.vstack([line_intersection_results, np.array([xy1[0], xy1[1], xy2[0], xy2[1], int_count, tot])])
+
+    # Calculate the distance between intersection points and triple points
+    triplept_intersection_coordinates = []
+    tp_thresh = 1.0  # Multiples of step size
+    for m in range(ntpoints):
+        # Distance in microns
+        dist = np.sqrt(((tpoint[m, 0] - gb_intersection_coordinates[:, 0]) ** 2) + (
+                    (tpoint[m, 1] - gb_intersection_coordinates[:, 1]) ** 2)) * tp_thresh * stepsize
+
+        # Find the distance under threshold and use that as an index into xyints:
+        current_coord = gb_intersection_coordinates[dist < stepsize]
+        if len(current_coord) != 0:
+            for i in range(len(current_coord)):
+                coord = current_coord[i]
+                xcoord = coord[:][0]
+                ycoord = coord[:][1]
+                if len(gb_intersection_coordinates) == 0:
+                    gb_intersection_coordinates = np.array([xcoord, ycoord])
+                else:
+                    gb_intersection_coordinates = np.vstack(
+                        [gb_intersection_coordinates, np.array([xcoord, ycoord])])
+    # Get the count of intersections through the triple points (from xcoord and ycoord)
+    tpcount = len(xcoord)
+
+    # Count the intersections: the ends count as half, hence the -1
+    # Add 0.5 counts for each time the line goes through a triple point.
+    P_L = sum(line_intersection_results[:, 4]) + 0.5 * tpcount - 1
+
+    # Calculate the intercept lengths
+    intercept_lengths = np.sqrt((gb_intersection_coordinates[:-2, 0] - gb_intersection_coordinates[1:, 0]) ** 2 + (gb_intersection_coordinates[:-2, 1] - gb_intersection_coordinates[1:, 1]) ** 2)
+
     # % plotting subfunction
     #     if ismember('PlotResults',varargin{:})
     #         %--- plotting the structure
@@ -645,9 +744,6 @@ def randlin(ebsd, n, grains, stepsize):
     #         yc = triplept_intersection_coordinates(:,2);
     #         scatter(xc,yc,'r','linewidth',2)
     #     end
-    #
-    #
-    # end % end of the function
 
     return P_L, total_line_length, intercept_lengths, gb_intersection_coordinates, line_intersection_results, triplept_intersection_coordinates
 
