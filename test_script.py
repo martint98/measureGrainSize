@@ -7,6 +7,7 @@ import warnings
 from scipy.io import loadmat
 import h5py
 import numpy as np
+from matplotlib import path
 
 
 class Dstruct:
@@ -148,6 +149,31 @@ def G_meanintl(u):
     G = A - B * np.log10(u)
 
     return G
+
+
+def edge_grain_segmentation(ebsd, polygon):
+    # Segments inside grains from grains touching the edge of a polygon
+
+    # Select only ebsd data within polygon
+    p = path.Path(polygon)
+    ind = [i for i in ebsd if p.contains_point(ebsd[i])]        # Indices of EBSD points within polygon of interest
+    ebsd = ebsd[ind]
+
+    # Detect grains -- note that the variable inside_grains does NOT contain
+    # only inside grains until the end of the function
+    degree = 1
+    inside_grains, ebsd.grainId = calcGrains(ebsd('indexed'), 'angle', 5 * degree, 'unitcell')
+
+    # if ismember('exclude_twins'):
+    #     inside_grains = exclude_twins(inside_grains)
+
+    # Delete grains that touch the polygon
+    outerBoundary_id = np.any(inside_grains.boundary.grainId==0, 2)
+    grain_id = inside_grains.boundary(outerBoundary_id).grainId
+    edge_grains = inside_grains[grain_id[:, 2]]
+    inside_grains[grain_id[:, 2]] = []
+
+    return inside_grains, edge_grains
 
 
 def grainsize_areas_planimetric(polygon):
