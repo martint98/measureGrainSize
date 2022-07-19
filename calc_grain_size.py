@@ -1388,7 +1388,7 @@ def GrainSize_E930_ALA(ebsd, G2):
     return G_largestGrain, volFraction
 
 
-if __name__ == '__main__':
+def main():
     # fpth = "C:\\Users\\marti\\Downloads\\Series1_Structure1_LowRes_1.dream3d"
     fpth = "C:\\Users\\marti\\Downloads\\Supplemental DREAM3D Structures\\Series1_Structure1_HighRes_1.dream3d"
 
@@ -1414,6 +1414,8 @@ if __name__ == '__main__':
     myEBSD.x = res_adjust * myEBSD.x
     myEBSD.y = res_adjust * myEBSD.y
 
+    print(G_meanintl(5))
+
     # Do some grain size measurements!
     # G_S, N_A_S, n_S = GrainSize_E112_SaltikovPlanimetric(myEBSD)    # Verified output matches MATLAB (Requires changing inputs within grainsize_areas_planimetric)
     # print(G_S, N_A_S, n_S)
@@ -1437,3 +1439,7 @@ if __name__ == '__main__':
     # print(f"G_Abrams = {G_Abrams}, abramsIntCount = {abramsIntCount}, abrams_lbar = {abrams_lbar}, abramsCircumference = {abramsCircumference}")
     # G_largestGrain, volFraction = GrainSize_E930_ALA(myEBSD, G_S)   # Verified output matches MATLAB (Requires changing inputs within grainsize_areas_planimetric)
     # print(G_largestGrain, volFraction)
+
+
+if __name__ == '__main__':
+    main()
