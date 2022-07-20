@@ -14,9 +14,10 @@ class Dstruct:
     def __init__(self, user_data):
         self.data = user_data
         self.euler_angles = user_data['DataContainers']['SyntheticVolumeDataContainer']['CellData']['EulerAngles']
-        self.mu = user_data['DataContainers']['StatsGeneratorDataContainer']['CellEnsembleData']['Statistics']['1']['FeatureSize Distribution']['Average']
-        self.sigma = user_data['DataContainers']['StatsGeneratorDataContainer']['CellEnsembleData']['Statistics']['1']['FeatureSize Distribution']['Standard Deviation']
-        self.tmp = user_data['DataContainers']['StatsGeneratorDataContainer']['CellEnsembleData']['Statistics']['1']['BinNumber']
+        self.temp = user_data['DataContainers']['StatsGeneratorDataContainer']['CellEnsembleData']['Statistics']['1']
+        self.mu = self.temp['FeatureSize Distribution']['Average']
+        self.sigma = self.temp['FeatureSize Distribution']['Standard Deviation']
+        self.tmp = self.temp['BinNumber']
         self.numbins = len(self.tmp)
         self.minsize = min(self.tmp)
         self.maxsize = max(self.tmp)
@@ -26,7 +27,8 @@ class Dstruct:
         self.dims = user_data['DataContainers']['SyntheticVolumeDataContainer']['_SIMPL_GEOMETRY']['DIMENSIONS'][:]
         self.mincutoff = (np.log(self.minsize) - self.mu) / self.sigma
         self.maxcutoff = (np.log(self.maxsize) - self.mu) / self.sigma
-        self.ngrains = user_data['DataContainers']['SyntheticVolumeDataContainer']['Grain Data'].attrs['TupleDimensions']
+        self.grain_data = user_data['DataContainers']['SyntheticVolumeDataContainer']['Grain Data']
+        self.ngrains = self.grain_data.attrs['TupleDimensions']
 
 
 class EBSD:
@@ -162,18 +164,18 @@ def edge_grain_segmentation(ebsd, polygon):
     # Detect grains -- note that the variable inside_grains does NOT contain
     # only inside grains until the end of the function
     degree = 1
-    inside_grains, ebsd.grainId = calcGrains(ebsd('indexed'), 'angle', 5 * degree, 'unitcell')
+    # inside_grains, ebsd.grainId = calcGrains(ebsd('indexed'), 'angle', 5 * degree, 'unitcell')
 
     # if ismember('exclude_twins'):
     #     inside_grains = exclude_twins(inside_grains)
 
     # Delete grains that touch the polygon
-    outerBoundary_id = np.any(inside_grains.boundary.grainId==0, 2)
-    grain_id = inside_grains.boundary(outerBoundary_id).grainId
-    edge_grains = inside_grains[grain_id[:, 2]]
-    inside_grains[grain_id[:, 2]] = []
+    # outerBoundary_id = np.any(inside_grains.boundary.grainId==0, 2)
+    # grain_id = inside_grains.boundary(outerBoundary_id).grainId
+    # edge_grains = inside_grains[grain_id[:, 2]]
+    # inside_grains[grain_id[:, 2]] = []
 
-    return inside_grains, edge_grains
+    # return inside_grains, edge_grains
 
 
 def grainsize_areas_planimetric(polygon):
@@ -181,19 +183,19 @@ def grainsize_areas_planimetric(polygon):
     # [inside_grains, edge_grains] = edge_grain_segmentation(ebsd, polygon, varargin{:});
 
     # Calculate number of grains according to ASTM E-112 section 11.1
-    # inside_grains_area = loadmat("GS_Meas\\myEBSD_high_res_1_area_inside_grains.mat")    # JeffriesPlanimetric
-    # inside_grains_area = inside_grains_area['areaInsideGrains']                          # JeffriesPlanimetric
-    inside_grains_area = loadmat("GS_Meas\\myEBSD_high_res_1_inside_grains_area.mat")      # SaltikovPlanimetric and ALA
-    inside_grains_area = inside_grains_area['inside_grains_area']                          # SaltikovPlanimetric and ALA
+    # inside_grains_area = loadmat("GS_Meas\\myEBSD_high_res_1_area_inside_grains.mat")    # Jeffries
+    # inside_grains_area = inside_grains_area['areaInsideGrains']                          # Jeffries
+    inside_grains_area = loadmat("GS_Meas\\myEBSD_high_res_1_inside_grains_area.mat")      # Saltikov and ALA
+    inside_grains_area = inside_grains_area['inside_grains_area']                          # Saltikov and ALA
     N_inside = len(inside_grains_area)
 
     # There is some bug in the edge grain segmentation which results in
     # duplicate grains. Selecting only unique centroids fixes this.
     # u = unique(edge_grains.centroid, 'rows');
-    # edge_grains_centroid = loadmat("GS_Meas\\myEBSD_high_res_1_jeffries_edge_grains_centroid.mat")  # JeffrieesPlanimetric
-    # u = np.unique(edge_grains_centroid['jeffries_edge_grain_centroids'])                            # JeffriesPlanimetric
-    edge_grains_centroid = loadmat("GS_Meas\\myEBSD_high_res_1_edge_grains_centroid.mat")  # SaltikovPlanimetric and ALA
-    u = np.unique(edge_grains_centroid['edge_grains_centroid'])                            # SaltikovPlanimetric and ALA
+    # edge_grains_centroid = loadmat("GS_Meas\\myEBSD_high_res_1_jeffries_edge_grains_centroid.mat")  # Jeffriees
+    # u = np.unique(edge_grains_centroid['jeffries_edge_grain_centroids'])                            # Jeffries
+    edge_grains_centroid = loadmat("GS_Meas\\myEBSD_high_res_1_edge_grains_centroid.mat")  # Saltikov and ALA
+    u = np.unique(edge_grains_centroid['edge_grains_centroid'])                            # Saltikov and ALA
     N_intercepted = len(u)
 
     # Calculate N_A for grain counting approaches
@@ -214,18 +216,300 @@ def grainsize_areas_planimetric(polygon):
 
 
 def get_polygon_area_shoelace_formula(x, y):
-    # TODO: Make get_polygon_area_shoelace_formula capable of the below MATLAB polyarea functionality
-    # If x and y are vectors of the same length, then polyarea returns the scalar area of the polygon defined by x and y
-    # If x and y are matrices of the same size, then polyarea returns a row vector containing the areas of each polygon
-    # defined by the columnwise pairs in x and y.
-    # If x and y are multidimensional arrays, then polyarea operates along the first dimension whose length is not equal
-    # to 1.
-    # print(f"x = {x}\ny = {y}")
+    """Calculate area of polygon
+    :param x: numpy array of polygon vertices x values
+    :param y: numpy array of polygon vertices y values
+    :return: area of the polygon
+    """
     # Assumes x,y points go around the polygon in one direction
     area = abs(sum(i * j for i, j in zip(x, y[1:])) + x[-1] * y[0]
                - sum(i * j for i, j in zip(x[1:], y)) - x[0] * y[-1]) / 2
-    # print(f"poly area = {area}")
     return area
+
+
+def grainsize_linint_random(ebsd, min_intercepts):
+    # detect grains
+    # [grains,ebsd.grainId] = calcGrains(ebsd('indexed'), 'angle', 5*degree, 'unitcell');
+
+    # TODO: Implement below functionality as it doesn't appear used at the moment
+    # if ismember('exclude_twins',varargin)
+    #     grains = exclude_twins(grains);
+
+    # smooth grains
+    # grains = grains.smooth;
+    # grains = smooth(grains, 5)
+    grains = loadmat("GS_Meas\\myEBSD_high_res_1_smoothed_grains.mat")          # HeynRandomLineMLI and PL
+
+    # calculate step size
+    # stepsize = 2*abs(ebsd.unitCell(1,1));
+    unitCell = loadmat("GS_Meas\\myEBSD_high_res_1_unit_cell.mat")              # HeynRandomLineMLI and PL
+    unitCell = unitCell['myUnitCell']                                           # HeynRandomLineMLI and PL
+    stepsize = 2 * abs(unitCell[0][0])
+
+    # Generate a number of random lines
+    # Lines are added to the slice until at least 50 intercepts are
+    # calculated.
+
+    # Start with one random line generation and add lines until the output
+    # gives at least 50 intercepts.
+    # nlines = 1; intercept_total = 0;
+    nlines = 1
+    intercept_total = 0
+
+    # while intercept_total < min_intercepts
+    # # while intercept_total < min_intercepts:
+    #      # Update calculations of intercepts
+    #      %[xyints, xync, linints, length_tot, dist, xycoord] = randlin(n, grains, stepsize);
+    #      P_L, total_line_length, intercept_lengths, gb_intersection_coordinates, line_intersection_results,
+    #       triplept_intersection_coordinates = randlin(ebsd, nlines, grains, stepsize, varargin);
+    #      TODO: Finish translation of below (skipping for now due to usage of MTEX within randlin func in this
+    #       while loop)
+    #      P_L, total_line_length, intercept_lengths, gb_intersection_coordinates, line_intersection_results, \
+    #       triplept_intersection_coordinates = randlin(ebsd, nlines, grains, stepsize)
+    #      Allocate intercept counts
+    #      intercept_count = line_intersection_results(:,5);
+    #      Total number of intercepts
+    #      intercept_total = sum(intercept_count);
+    #      Add another random line
+    #      nlines = nlines + 1;
+
+    # Hard code loop results for HeynRandomLineMLI and PL
+    P_L = 51
+    total_line_length = 1081.373455580337
+    intercept_lengths = loadmat("GS_Meas\\linint_random_while_loop_output\\intercept_lengths.mat")
+    intercept_lengths = intercept_lengths["intercept_lengths"]
+    gb_intersection_coordinates = loadmat("GS_Meas\\linint_random_while_loop_output\\gb_intersection_coordinates.mat")
+    gb_intersection_coordinates = gb_intersection_coordinates["gb_intersection_coordinates"]
+    line_intersection_results = loadmat("GS_Meas\\linint_random_while_loop_output\\line_intersection_coordinates.mat")
+    line_intersection_results = line_intersection_results["line_intersection_results"]
+    triplept_intersection_coordinates = loadmat("GS_Meas\\linint_random_while_loop_output\\"
+                                                "triplept_intersection_coordinates.mat")
+    triplept_intersection_coordinates = triplept_intersection_coordinates["triplept_intersection_coordinates"]
+    nlines = 6
+    intercept_count = line_intersection_results[:, 4]
+    intercept_total = sum(intercept_count)
+
+    nlines = nlines - 1
+
+    MLI = np.mean(intercept_lengths)  # Mean lineal intercept
+    MIC = total_line_length / P_L  # Mean intersection count
+
+    G_PL = G_meanintl(MIC)
+    G_L = G_meanintl(MLI)
+
+    return G_L, G_PL, MLI, MIC, grains, intercept_lengths, gb_intersection_coordinates, line_intersection_results, \
+        triplept_intersection_coordinates, nlines, total_line_length
+
+
+def smooth(a, WSZ):
+    out0 = np.convolve(a, np.ones(WSZ, dtype=int), 'valid')/WSZ
+    r = np.arange(1, WSZ-1, 2)
+    start = np.cumsum(a[:WSZ-1])[::2]/r
+    stop = (np.cumsum(a[:-WSZ:-1])[::2]/r)[::-1]
+
+    return np.concatenate((start, out0, stop))
+
+
+def randlin(ebsd, n, grains, stepsize):
+    # % Generate random lines on EBSD map and measure intersections and intercept
+    # % lengths for lineal intercept grain size measurements
+    # %
+    # % Input parameters
+    # % ----------------
+    # % n : integer
+    # %                       number of random lines to generate
+    # %
+    # % grains : mtex grain2d object
+    # %
+    # % stepsize : ebsd stepsize
+    # %
+    # % Output parameters
+    # % -----------------
+    # % P_L : scalar
+    # %                       proper intercept count, taking into account ends of
+    # %                       lines and triple points
+    # %
+    # % total_line_length: scalar
+    # %                       sum length of all random lines
+    # %
+    # % intercept_lengths: n x 1 array
+    # %                       lengths between intersections
+    # %
+    # % gb_intersection_coordinates: n x 2 array
+    # %                       column 1: x coordinate of intersection
+    # %                       column 2: y coordinate of intersection
+    # %                       column 3: line number (corresponding to rows in
+    # %                                    line_intersection_results)
+    # %
+    # % line_intersection_results: n x 6 array
+    # %                       column 1: x coordinate start of line
+    # %                       column 2: x coordinate end of line
+    # %                       column 3: y coordinate start of line
+    # %                       column 4: y coordinate end of line
+    # %                       column 5: number of intersections recorded (does
+    # %                                 not take into account whether
+    # %                                 intersection is at triple point)
+    # %                       column 6: length of line
+    # %
+    # % triplept_intersection_coordinates: n x 2 array
+    # %                       column 1: x coordinate of intersection coincident
+    # %                                 with triple point
+    # %                       column 2: y coordinate of intersection coincident
+    # %                                 with triple point
+    # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    # Have mtex get the coordinates of triple points
+    # tP = grains.triplePoints;
+    x_tP = loadmat("GS_Meas\\myEBSD_high_res_1_x_tp.mat")
+    x_tP = x_tP['x_tP']
+    y_tP = loadmat("GS_Meas\\myEBSD_high_res_1_y_tp.mat")
+    y_tP = y_tP['y_tP']
+    tpoint = np.hstack((x_tP, y_tP))
+    ntpoints = np.shape(tpoint)
+    ntpoints = ntpoints[0]
+
+    # Get scan dimensions
+    # xdim_max = ceil(max(grains.x)); % maximum x-dimension
+    xdim_max = math.ceil(max(ebsd.x))  # Maximum x-dimension
+    # ydim_max = ceil(max(grains.y)); % maximum y-dimension
+    ydim_max = math.ceil(max(ebsd.y))  # Maximum y-dimension
+    # xdim_min = floor(min(grains.x)); % minimum x-dimension
+    xdim_min = math.floor(min(ebsd.x))  # Minimum y-dimension
+    # ydim_min = floor(min(grains.y)); % minimum y-dimension
+    ydim_min = math.floor(min(ebsd.y))  # Minimum y-dimension
+
+    # Begin loop over desired number of random lines
+    line_intersection_results = []
+    gb_intersection_coordinates = []  # x-y intercepts
+    total_line_length = 0
+
+    for k in range(n):
+        xdim = np.array([xdim_min, xdim_max])  # x-coordinates of the boundary
+        ydim = np.array([ydim_min, ydim_max])  # y-coordinates of the boundary
+        y = (ydim_max - ydim_min) * np.random.randint(0, (2, 1)) + ydim_min
+        x = (xdim_max - xdim_min) * np.random.randint(0, (2, 1)) + xdim_min
+        # Get slope and intercept of line
+        m = (ydim_max - ydim_min) / (xdim_max - xdim_min)
+        b = ydim_max - m + xdim_max  # Intercept from y=mx+b
+        # Get intersections with bounding box
+        yya = m * xdim_min + b  # Value of y at left edge on line
+        if yya > ydim_max:  # Then the xdim_min coordinate is along the top edge
+            bbx1 = (ydim_max - b) / m
+        elif yya < ydim_min:  # Then xdim_min coordinate is along bottom edge
+            bbx1 = (ydim_min - b) / m
+        else:  # Then x coordinate is the left edge
+            bbx1 = xdim_min
+        yyb = m * xdim_max + b  # Value of y at right edge on line
+        if yyb > ydim_max:  # Then the xdim_max coordinate is along top edge
+            bbx2 = (ydim_max - b) / m
+        elif yyb < ydim_min:  # Then xdim_max coordinate is along bottom edge
+            bbx2 = (ydim_min - b) / m
+        else:  # Then x coordinate is the right edge
+            bbx2 = xdim_max
+        xxa = (ydim_min - b) / m  # Value of x at y1 on line
+        if xxa > xdim_max:  # Then the y1 coordinate is along right edge
+            bby1 = xdim_max * m + b
+        elif xxa < xdim_min:  # Then the y2 coordinate is along left edge
+            bby1 = xdim_min * m + b
+        else:  # Then y coordinate is the bottom edge
+            bby1 = ydim_min
+        xxb = (ydim_max - b) / m  # Value of x on line at upper edge of bounding box
+        if xxb > xdim_max:  # Then the y2 coordinate is along left edge
+            bby2 = xdim_max * m + b
+        elif xxb < xdim_min:  # Then the y2 coordinate is along right edge
+            bby2 = xdim_min * m + b
+        else:  # It must be top edge
+            bby2 = ydim_max
+        # Collect our line starting and ending points and correct for slope
+        offset = 1.0
+        if m > 0:
+            xy1 = np.array([bbx1, bby1]) + offset * stepsize
+            xy2 = np.array([bbx2, bby2]) - offset * stepsize
+        else:
+            xy1 = np.array([(bbx1 + offset), (bby2 - offset * stepsize)])
+            xy2 = np.array([(bbx2 - offset), (bby1 + offset * stepsize)])
+        # Have mtex get the intersections
+        # TODO: Create implementation of below
+        # [xi,yi] = grains.boundary.intersect(xy1,xy2);
+        xi = []
+        yi = []
+        # Find the number of boundary intersection points
+        int_count = sum(np.logical_not(np.isnan(xi)))
+        # Get the x- and y-coordinates of the interceptions
+        xx1 = xi[np.logical_not(np.isnan(xi))]
+        yy1 = yi[np.logical_not(np.isnan(yi))]
+        line_no = k * np.ones((1, len(xx1)))
+        if len(gb_intersection_coordinates) == 0:
+            gb_intersection_coordinates = np.array([xx1.T.conj(), yy1.T.conj(), line_no.T.conj()])
+        else:
+            gb_intersection_coordinates = np.vstack([gb_intersection_coordinates, np.array([xx1.T.conj(), yy1.T.conj(),
+                                                                                            line_no.T.conj()])])
+        # Total length of the line
+        tot = np.sqrt((xy2[1] - xy1[1]) ** 2 + (xy2[0] - xy1[0]) ** 2)
+        total_line_length = total_line_length + tot
+        # Collate info from individual lines
+        if len(line_intersection_results) == 0:
+            line_intersection_results = np.array([xy1[0], xy1[1], xy2[0], xy2[1], int_count, tot])
+        else:
+            line_intersection_results = np.vstack([line_intersection_results, np.array([xy1[0], xy1[1], xy2[0], xy2[1],
+                                                                                        int_count, tot])])
+
+    # Calculate the distance between intersection points and triple points
+    triplept_intersection_coordinates = []
+    tp_thresh = 1.0  # Multiples of step size
+    for m in range(ntpoints):
+        # Distance in microns
+        dist = np.sqrt(((tpoint[m, 0] - gb_intersection_coordinates[:, 0]) ** 2) + (
+                    (tpoint[m, 1] - gb_intersection_coordinates[:, 1]) ** 2)) * tp_thresh * stepsize
+
+        # Find the distance under threshold and use that as an index into xyints:
+        current_coord = gb_intersection_coordinates[dist < stepsize]
+        if len(current_coord) != 0:
+            for i in range(len(current_coord)):
+                coord = current_coord[i]
+                xcoord = coord[:][0]
+                ycoord = coord[:][1]
+                gb_intersection_coordinates = np.hstack((xcoord, ycoord))
+    # Get the count of intersections through the triple points (from xcoord and ycoord)
+    tpcount = len(xcoord)
+
+    # Count the intersections: the ends count as half, hence the -1
+    # Add 0.5 counts for each time the line goes through a triple point.
+    P_L = sum(line_intersection_results[:, 4]) + 0.5 * tpcount - 1
+
+    # Calculate the intercept lengths
+    intercept_lengths = np.sqrt((gb_intersection_coordinates[:-2, 0] - gb_intersection_coordinates[1:, 0]) ** 2 +
+                                (gb_intersection_coordinates[:-2, 1] - gb_intersection_coordinates[1:, 1]) ** 2)
+
+    # % plotting subfunction
+    #     if ismember('PlotResults',varargin{:})
+    #         %--- plotting the structure
+    #         plot(ebsd, ebsd.orientations); hold on
+    #         plot(grains.boundary,'LineWidth',1); hold on
+    #         %--- plot triple points
+    #         plot(tP,'color','b','linewidth',2); hold on
+    #         %--- plotting the lines
+    #         plot(ebsd('genericCubic'), ebsd('genericCubic').orientations); hold on
+    #         plot(grains.boundary,'LineWidth',2); hold on
+    #         x = gb_intersection_coordinates(:,1);
+    #         y = gb_intersection_coordinates(:,2); hold on
+    #         for i=1:size(line_intersection_results,1)
+    #             line([line_intersection_results(i,1);line_intersection_results(i,3)], ...
+    #                 [line_intersection_results(i,2);line_intersection_results(i,4)], ...
+    #                 'linestyle','-','linewidth',4,'color','black')
+    #         end
+    #         %--- plotting the intersections
+    #         hold on
+    #         scatter(x,y,'w','linewidth',2); hold on
+    #         %--- plotting the coordinates considered intersecting a triple
+    #         %point
+    #         xc = triplept_intersection_coordinates(:,1);
+    #         yc = triplept_intersection_coordinates(:,2);
+    #         scatter(xc,yc,'r','linewidth',2)
+    #     end
+
+    return P_L, total_line_length, intercept_lengths, gb_intersection_coordinates, line_intersection_results, \
+        triplept_intersection_coordinates
 
 
 def GrainSize_E112_SaltikovPlanimetric(ebsd):
@@ -259,19 +543,48 @@ def GrainSize_E112_SaltikovPlanimetric(ebsd):
     return G_N, N_A, N
 
 
+def GrainSize_E112_JeffriesPlanimetric(ebsd):
+    # Jeffries' Planimetric: Count of grains in a test circle
+    # Grains completely enclosed count as 1, those intercepted by the circle count by half.
+
+    # approximate a circle as a polygon
+    offset = 0.02  # 2 percent inset from edges
+    xcenter = 0.5 * (max(ebsd.x) - min(ebsd.x))
+    ycenter = 0.5 * (max(ebsd.y) - min(ebsd.y))
+    thetas = np.arange(start=0, step=(np.pi/100), stop=((2 * np.pi) + (np.pi/100)))
+    xres = (2 * xcenter)/len(ebsd.x)
+    yres = (2 * ycenter)/len(ebsd.y)
+    radius = 0.5 * min((max(ebsd.x) - min(ebsd.x)), (max(ebsd.y) - min(ebsd.y)))
+    inset = max((len(ebsd.x) * offset * xres), (len(ebsd.y) * offset * yres))
+    radius = radius - inset  # inset from the edges of the scan
+    circ_x = radius * np.cos(thetas) + xcenter
+    circ_y = radius * np.sin(thetas) + ycenter
+    polygon = np.hstack((circ_x, circ_y))
+
+    # [G_N, ~, N_A, N, ~, ~, inside_grains2, edge_grains2, ~] = grainsize_areas_planimetric(ebsd, polygon, varargin{:});
+    G_N, N_A, N = grainsize_areas_planimetric(polygon)
+
+    # Plotting subfunction
+    # if ismember('PlotResults',varargin)
+    #     plot(ebsd, ebsd.orientations); hold on
+    #     plot(edge_grains2.boundary, 'linewidth', 2, 'lineColor', 'black');
+    #     plot(inside_grains2.boundary, 'linewidth', 3, 'lineColor', 'white');
+    #     plot(polygon(:,1), polygon(:,2), 'k', 'linewidth', 3)
+
+    return G_N, N_A, N
+
+
 def GrainSize_E2627_AsWritten(ebsd):
-    # function [G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas] = GrainSize_E2627_AsWritten(ebsd, varargin)
     # Perform ASTM E2627 measurement as written (minimum grain size 100 px)
 
     min_px_per_grain = 100
-    # [G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas] = GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain, varargin{:});
-    G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas = GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain)
+    G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas = GrainSize_E2627_CustomMinGS(ebsd,
+                                                                                                       min_px_per_grain)
 
     return G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas
 
 
 def GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain):
-    # function [G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas] = GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain, varargin)
     # Area based grain size measurement according to ASTM E2627
 
     # Works with similar outputs to other grain size functions except the
@@ -350,444 +663,12 @@ def GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain):
     return G_A, Abar, n, N_A_measured[0], avg_px_per_grain_before_threshold, areas
 
 
-def GrainSize_E112_JeffriesPlanimetric(ebsd):
-    # Jeffries' Planimetric: Count of grains in a test circle
-    # Grains completely enclosed count as 1, those intercepted by the circle count by half.
-
-    # approximate a circle as a polygon
-    offset = 0.02  # 2 percent inset from edges
-    xcenter = 0.5 * (max(ebsd.x) - min(ebsd.x))
-    ycenter = 0.5 * (max(ebsd.y) - min(ebsd.y))
-    thetas = np.arange(start=0, step=(np.pi/100), stop=((2 * np.pi) + (np.pi/100)))
-    xres = (2 * xcenter)/len(ebsd.x)
-    yres = (2 * ycenter)/len(ebsd.y)
-    radius = 0.5 * min((max(ebsd.x) - min(ebsd.x)), (max(ebsd.y) - min(ebsd.y)))
-    inset = max((len(ebsd.x) * offset * xres), (len(ebsd.y) * offset * yres))
-    radius = radius - inset  # inset from the edges of the scan
-    circ_x = radius * np.cos(thetas) + xcenter
-    circ_y = radius * np.sin(thetas) + ycenter
-    for i in range(len(circ_x)):
-        if i == 0:
-            polygon = np.array([circ_x[i], circ_y[i]])
-        else:
-            coords = np.array([circ_x[i], circ_y[i]])
-            polygon = np.vstack((polygon, coords))
-
-    # [G_N, ~, N_A, N, ~, ~, inside_grains2, edge_grains2, ~] = grainsize_areas_planimetric(ebsd, polygon, varargin{:});
-    G_N, N_A, N = grainsize_areas_planimetric(polygon)
-
-    # Plotting subfunction
-    # if ismember('PlotResults',varargin)
-    #     plot(ebsd, ebsd.orientations); hold on
-    #     plot(edge_grains2.boundary, 'linewidth', 2, 'lineColor', 'black');
-    #     plot(inside_grains2.boundary, 'linewidth', 3, 'lineColor', 'white');
-    #     plot(polygon(:,1), polygon(:,2), 'k', 'linewidth', 3)
-
-    return G_N, N_A, N
-
-
-def grainsize_linint_random(ebsd, min_intercepts):
-    # function [G_L, G_PL, MLI, MIC, grains, intercept_lengths, gb_intersection_coordinates, line_intersection_results, triplept_intersection_coordinates, nlines, total_line_length] = grainsize_linint_random(ebsd, min_intercepts, varargin)
-
-    # detect grains
-    # [grains,ebsd.grainId] = calcGrains(ebsd('indexed'), 'angle', 5*degree, 'unitcell');
-
-    # TODO: Implement below functionality as it doesn't appear used at the moment
-    # if ismember('exclude_twins',varargin)
-    #     grains = exclude_twins(grains);
-
-    # smooth grains
-    # grains = grains.smooth;
-    # grains = smooth(grains, 5)
-    grains = loadmat("GS_Meas\\myEBSD_high_res_1_smoothed_grains.mat")          # HeynRandomLineMLI and PL
-
-    # calculate step size
-    # stepsize = 2*abs(ebsd.unitCell(1,1));
-    unitCell = loadmat("GS_Meas\\myEBSD_high_res_1_unit_cell.mat")              # HeynRandomLineMLI and PL
-    unitCell = unitCell['myUnitCell']                                           # HeynRandomLineMLI and PL
-    stepsize = 2 * abs(unitCell[0][0])
-
-    # Generate a number of random lines
-    # Lines are added to the slice until at least 50 intercepts are
-    # calculated.
-
-    # Start with one random line generation and add lines until the output
-    # gives at least 50 intercepts.
-    # nlines = 1; intercept_total = 0;
-    nlines = 1
-    intercept_total = 0
-
-    # while intercept_total < min_intercepts
-    # while intercept_total < min_intercepts:
-        # Update calculations of intercepts
-        # %[xyints, xync, linints, length_tot, dist, xycoord] = randlin(n, grains, stepsize);
-        # [P_L, total_line_length, intercept_lengths, gb_intersection_coordinates, line_intersection_results, triplept_intersection_coordinates] = randlin(ebsd, nlines, grains, stepsize, varargin);
-        # TODO: Finish translation of below (skipping for now due to usage of MTEX within randlin func in this while loop)
-        # P_L, total_line_length, intercept_lengths, gb_intersection_coordinates, line_intersection_results, triplept_intersection_coordinates = randlin(ebsd, nlines, grains, stepsize)
-        # Allocate intercept counts
-        # intercept_count = line_intersection_results(:,5);
-        # Total number of intercepts
-        # intercept_total = sum(intercept_count);
-        # Add another random line
-        # nlines = nlines + 1;
-
-    # Hard code loop results for HeynRandomLineMLI and PL
-    P_L = 51
-    total_line_length = 1081.373455580337
-    intercept_lengths = loadmat("GS_Meas\\linint_random_while_loop_output\\intercept_lengths.mat")
-    intercept_lengths = intercept_lengths["intercept_lengths"]
-    gb_intersection_coordinates = loadmat("GS_Meas\\linint_random_while_loop_output\\gb_intersection_coordinates.mat")
-    gb_intersection_coordinates = gb_intersection_coordinates["gb_intersection_coordinates"]
-    line_intersection_results = loadmat("GS_Meas\\linint_random_while_loop_output\\line_intersection_coordinates.mat")
-    line_intersection_results = line_intersection_results["line_intersection_results"]
-    triplept_intersection_coordinates = loadmat("GS_Meas\\linint_random_while_loop_output\\triplept_intersection_coordinates.mat")
-    triplept_intersection_coordinates = triplept_intersection_coordinates["triplept_intersection_coordinates"]
-    nlines = 6
-    intercept_count = line_intersection_results[:, 4]
-    intercept_total = sum(intercept_count)
-
-    # nlines  = nlines -1;
-    nlines = nlines - 1
-
-    # MLI = mean(intercept_lengths); % Mean lineal intercept
-    MLI = np.mean(intercept_lengths)  # Mean lineal intercept
-    # MIC = total_line_length / P_L; % Mean intersection count
-    MIC = total_line_length / P_L  # Mean intersection count
-
-    # G_PL = G_meanintl(MIC);
-    G_PL = G_meanintl(MIC)
-    # G_L  = G_meanintl(MLI);
-    G_L = G_meanintl(MLI)
-
-    return G_L, G_PL, MLI, MIC, grains, intercept_lengths, gb_intersection_coordinates, line_intersection_results, triplept_intersection_coordinates, nlines, total_line_length
-
-
-def smooth(a, WSZ):
-    out0 = np.convolve(a, np.ones(WSZ, dtype=int), 'valid')/WSZ
-    r = np.arange(1, WSZ-1, 2)
-    start = np.cumsum(a[:WSZ-1])[::2]/r
-    stop = (np.cumsum(a[:-WSZ:-1])[::2]/r)[::-1]
-
-    return np.concatenate((start, out0, stop))
-
-
-def randlin(ebsd, n, grains, stepsize):
-    # function [P_L, total_line_length, intercept_lengths, gb_intersection_coordinates, line_intersection_results, triplept_intersection_coordinates] = randlin(ebsd, n, grains, stepsize, varargin)
-    # % Generate random lines on EBSD map and measure intersections and intercept
-    # % lengths for lineal intercept grain size measurements
-    # %
-    # % Input parameters
-    # % ----------------
-    # % n : integer
-    # %                       number of random lines to generate
-    # %
-    # % grains : mtex grain2d object
-    # %
-    # % stepsize : ebsd stepsize
-    # %
-    # % Output parameters
-    # % -----------------
-    # % P_L : scalar
-    # %                       proper intercept count, taking into account ends of
-    # %                       lines and triple points
-    # %
-    # % total_line_length: scalar
-    # %                       sum length of all random lines
-    # %
-    # % intercept_lengths: n x 1 array
-    # %                       lengths between intersections
-    # %
-    # % gb_intersection_coordinates: n x 2 array
-    # %                       column 1: x coordinate of intersection
-    # %                       column 2: y coordinate of intersection
-    # %                       column 3: line number (corresponding to rows in
-    # %                                    line_intersection_results)
-    # %
-    # % line_intersection_results: n x 6 array
-    # %                       column 1: x coordinate start of line
-    # %                       column 2: x coordinate end of line
-    # %                       column 3: y coordinate start of line
-    # %                       column 4: y coordinate end of line
-    # %                       column 5: number of intersections recorded (does
-    # %                                 not take into account whether
-    # %                                 intersection is at triple point)
-    # %                       column 6: length of line
-    # %
-    # % triplept_intersection_coordinates: n x 2 array
-    # %                       column 1: x coordinate of intersection coincident
-    # %                                 with triple point
-    # %                       column 2: y coordinate of intersection coincident
-    # %                                 with triple point
-    # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    # Have mtex get the coordinates of triple points
-    # tP = grains.triplePoints;
-    # xii = tP.x;
-    x_tP = loadmat("GS_Meas\\myEBSD_high_res_1_x_tp.mat")
-    x_tP = x_tP['x_tP']
-    # yii = tP.y;
-    y_tP = loadmat("GS_Meas\\myEBSD_high_res_1_y_tp.mat")
-    y_tP = y_tP['y_tP']
-    # tpoint = [xii, yii];
-    for i in range(len(x_tP)):
-        if i == 0:
-            tpoint = np.array([x_tP[i][0], y_tP[i][0]])
-        else:
-            coords = np.array([x_tP[i][0], y_tP[i][0]])
-            tpoint = np.vstack((tpoint, coords))
-    # ntpoints = size(tpoint);
-    ntpoints = np.shape(tpoint)
-    # ntpoints = ntpoints(1);
-    ntpoints = ntpoints[0]
-
-    # Get scan dimensions
-    # xdim_max = ceil(max(grains.x)); % maximum x-dimension
-    xdim_max = math.ceil(max(ebsd.x))  # Maximum x-dimension
-    # ydim_max = ceil(max(grains.y)); % maximum y-dimension
-    ydim_max = math.ceil(max(ebsd.y))  # Maximum y-dimension
-    # xdim_min = floor(min(grains.x)); % minimum x-dimension
-    xdim_min = math.floor(min(ebsd.x))  # Minimum y-dimension
-    # ydim_min = floor(min(grains.y)); % minimum y-dimension
-    ydim_min = math.floor(min(ebsd.y))  # Minimum y-dimension
-
-    # Begin loop over desired number of random lines
-    # line_intersection_results = [];
-    line_intersection_results = []
-    # gb_intersection_coordinates = []; % x-y intercepts
-    gb_intersection_coordinates = []  # x-y intercepts
-    # total_line_length = 0;
-    total_line_length = 0
-    # for k = 1:n
-    #     % boundaries of the structure
-    #     xdim = [xdim_min, xdim_max]; % x-coordinates of the boundary
-    #     ydim = [ydim_min, ydim_max]; % y-coordinates of the boundary
-    #     y = (ydim(2) - ydim(1)) .* rand(2,1) + ydim(1);
-    #     x = (xdim(2) - xdim(1)) .* rand(2,1) + xdim(1);
-    #     x2 = x(2);
-    #     x1 = x(1);
-    #     y2 = y(2);
-    #     y1 = y(1);
-    #     m = (y2 - y1) / (x2 - x1);
-    #     b = y2 - m * x2; % intercept from y=mx+b
-    #     yya = m * xdim(1) + b; % value of y at left edge on line
-    #     if yya > ydim(2) % then the x1 coordinate is along top edge
-    #         bbx1 = (ydim(2) - b) / m;
-    #     elseif yya < ydim(1) % then x1 coordinate is along bottom edge
-    #         bbx1 = (ydim(1) - b) / m;
-    #     else % then x coordinate is the left edge
-    #         bbx1 = xdim(1);
-    #     end
-    #     yyb = m * xdim(2) + b; % value of y at right edge on line
-    #     if yyb > ydim(2) % then the x2 coordinate is along top edge
-    #         bbx2 = (ydim(2) - b) / m;
-    #     elseif yyb < ydim(1) % then x2 coordinate is along bottom edge
-    #         bbx2 = (ydim(1) - b) / m;
-    #     else % then x coordinate is the right edge
-    #         bbx2 = xdim(2);
-    #     end
-    #     xxa = (ydim(1) - b) / m; % value of x at y1 on line
-    #     if xxa > xdim(2) % then the y1 coordinate is along right edge
-    #         bby1 = xdim(2) * m + b;
-    #     elseif xxa < xdim(1) % then the y2 coordinate is along left edge
-    #         bby1 = xdim(1) * m + b;
-    #     else % then y coordinate is the bottom edge
-    #         bby1 = ydim(1);
-    #     end
-    #     xxb = (ydim(2) - b) / m; % value of x on line at upper edge of bounding box
-    #     if xxb > xdim(2) % then the y2 coordinate is along right edge
-    #         bby2 = xdim(2) * m + b;
-    #     elseif xxb < xdim(1) % then the y2 coordinate is along left edge
-    #         bby2 = xdim(1) * m + b;
-    #     else % it must be the top edge
-    #         bby2 = ydim(2);
-    #     end
-    #     % Collect our line starting and ending points and correct for slope
-    #     offset = 1.0;
-    #     if m>0
-    #         xy1 = [bbx1, bby1] + offset*stepsize;
-    #         xy2 = [bbx2, bby2] - offset*stepsize;
-    #     else
-    #         xy1 = [bbx1 + offset, bby2 - offset*stepsize];
-    #         xy2 = [bbx2 - offset, bby1 + offset*stepsize];
-    #     end
-    #     % Have mtex get the intersections
-    #     [xi,yi] = grains.boundary.intersect(xy1,xy2);
-    #     % find the number of boundary intersection points
-    #     int_count = sum(~isnan(xi));
-    #     % get the x- and y-coordinates of the interceptions
-    #     xx1 = xi(~isnan(xi));
-    #     yy1 = yi(~isnan(yi));
-    #     line_no = k * ones(size(xx1));
-    #     gb_intersection_coordinates = cat(1, gb_intersection_coordinates, [xx1', yy1', line_no']);
-    #     % total length of the line
-    #     tot = sqrt((xy2(2) - xy1(2)).^2 + (xy2(1) - xy1(1)).^2);
-    #     total_line_length = total_line_length + tot;
-    #     % collate info from individual lines
-    #     line_intersection_results = cat(1, line_intersection_results, [xy1(1), xy1(2), xy2(1), xy2(2), int_count, tot]);
-    #
-    # end % end of loop over number of lines
-    # % calculate the distance between intersection points and triple points
-    # triplept_intersection_coordinates = [];
-    # tp_thresh = 1.0; % multiples of step size
-    # for m = 1:ntpoints
-    #     % distance in microns:
-    #     dist = sqrt((tpoint(m,1) - gb_intersection_coordinates(1:end,1)).^2 + ...
-    #                 (tpoint(m,2) - gb_intersection_coordinates(1:end,2)).^2) * ...
-    #                  tp_thresh * stepsize;
-    #
-    #     %find the distance under threshold and use that as an index into xyints:
-    #     coord = gb_intersection_coordinates(dist<stepsize, :);
-    #     xcoord = coord(:, 1);
-    #     ycoord = coord(:, 2);
-    #     triplept_intersection_coordinates = cat(1, triplept_intersection_coordinates, [xcoord, ycoord]);
-    # end
-    # % get the count of intersections through the triple points (from xcoord
-    # % and ycoord)
-    # tpcount = numel(xcoord);
-    # % Count the intersections: the ends count as half, hence the -1;
-    # % add 0.5 counts for each time the line goes through a triple point.
-    # P_L = sum(line_intersection_results(:, 5)) + 0.5 * tpcount - 1;
-    #
-    # % Calculate the intercept lengths
-    # intercept_lengths = sqrt((gb_intersection_coordinates(1:end-1, 1) - ...
-    #                           gb_intersection_coordinates(2:end, 1)).^2 + ...
-    #                          (gb_intersection_coordinates(1:end-1, 2) - ...
-    #                           gb_intersection_coordinates(2:end, 2)).^2);
-
-    for k in range(n):
-        xdim = np.array([xdim_min, xdim_max])  # x-coordinates of the boundary
-        ydim = np.array([ydim_min, ydim_max])  # y-coordinates of the boundary
-        y = (ydim_max - ydim_min) * np.random.randint(size=(2, 1)) + ydim_min
-        x = (xdim_max - xdim_min) * np.random.randint(size=(2, 1)) + xdim_min
-        # Get slope and intercept of line
-        m = (ydim_max - ydim_min) / (xdim_max - xdim_min)
-        b = ydim_max - m + xdim_max  # Intercept from y=mx+b
-        # Get intersections with bounding box
-        yya = m * xdim_min + b  # Value of y at left edge on line
-        if yya > ydim_max:  # Then the xdim_min coordinate is along the top edge
-            bbx1 = (ydim_max - b) / m
-        elif yya < ydim_min:  # Then xdim_min coordinate is along bottom edge
-            bbx1 = (ydim_min - b) / m
-        else:  # Then x coordinate is the left edge
-            bbx1 = xdim_min
-        yyb = m * xdim_max + b  # Value of y at right edge on line
-        if yyb > ydim_max:  # Then the xdim_max coordinate is along top edge
-            bbx2 = (ydim_max - b) / m
-        elif yyb < ydim_min:  # Then xdim_max coordinate is along bottom edge
-            bbx2 = (ydim_min - b) / m
-        else:  # Then x coordinate is the right edge
-            bbx2 = xdim_max
-        xxa = (ydim_min - b) / m  # Value of x at y1 on line
-        if xxa > xdim_max:  # Then the y1 coordinate is along right edge
-            bby1 = xdim_max * m + b
-        elif xxa < xdim_min:  # Then the y2 coordinate is along left edge
-            bby1 = xdim_min * m + b
-        else:  # Then y coordinate is the bottom edge
-            bby1 = ydim_min
-        xxb = (ydim_max - b) / m  # Value of x on line at upper edge of bounding box
-        if xxb > xdim_max:  # Then the y2 coordinate is along left edge
-            bby2 = xdim_max * m + b
-        elif xxb < xdim_min:  # Then the y2 coordinate is along right edge
-            bby2 = xdim_min * m + b
-        else:  # It must be top edge
-            bby2 = ydim_max
-        # Collect our line starting and ending points and correct for slope
-        offset = 1.0
-        if m>0:
-            xy1 = np.array([bbx1, bby1]) + offset * stepsize
-            xy2 = np.array([bbx2, bby2]) - offset * stepsize
-        else:
-            xy1 = np.array([(bbx1 + offset), (bby2 - offset * stepsize)])
-            xy2 = np.array([(bbx2 - offset), (bby1 + offset * stepsize)])
-        # Have mtex get the intersections
-        # TODO: Create implementation of below
-        # [xi,yi] = grains.boundary.intersect(xy1,xy2);
-        xi = 0
-        yi = 0
-        # Find the number of boundary intersection points
-        int_count = sum(np.logical_not(np.isnan(xi)))
-        # Get the x- and y-coordinates of the interceptions
-        xx1 = xi(np.logical_not(np.isnan(xi)))
-        yy1 = yi(np.logical_not(np.isnan(yi)))
-        line_no = k * np.ones((1, len(xx1)))
-        if len(gb_intersection_coordinates) == 0:
-            gb_intersection_coordinates = np.array([np.atleast_2d(xx1).T.conj(), np.atleast_2d(yy1).T.conj(), np.atleast_2d(line_no).T.conj()])
-        else:
-            gb_intersection_coordinates = np.vstack([gb_intersection_coordinates, np.array([np.atleast_2d(xx1).T.conj(), np.atleast_2d(yy1).T.conj(), np.atleast_2d(line_no).T.conj()])])
-        # Total length of the line
-        tot = np.sqrt((xy2[1] - xy1[1]) ** 2 + (xy2[0] - xy1[0]) ** 2)
-        total_line_length = total_line_length + tot
-        # Collate info from individual lines
-        if len(line_intersection_results) == 0:
-            line_intersection_results = np.array([xy1[0], xy1[1], xy2[0], xy2[1], int_count, tot])
-        else:
-            line_intersection_results = np.vstack([line_intersection_results, np.array([xy1[0], xy1[1], xy2[0], xy2[1], int_count, tot])])
-
-    # Calculate the distance between intersection points and triple points
-    triplept_intersection_coordinates = []
-    tp_thresh = 1.0  # Multiples of step size
-    for m in range(ntpoints):
-        # Distance in microns
-        dist = np.sqrt(((tpoint[m, 0] - gb_intersection_coordinates[:, 0]) ** 2) + (
-                    (tpoint[m, 1] - gb_intersection_coordinates[:, 1]) ** 2)) * tp_thresh * stepsize
-
-        # Find the distance under threshold and use that as an index into xyints:
-        current_coord = gb_intersection_coordinates[dist < stepsize]
-        if len(current_coord) != 0:
-            for i in range(len(current_coord)):
-                coord = current_coord[i]
-                xcoord = coord[:][0]
-                ycoord = coord[:][1]
-                if len(gb_intersection_coordinates) == 0:
-                    gb_intersection_coordinates = np.array([xcoord, ycoord])
-                else:
-                    gb_intersection_coordinates = np.vstack(
-                        [gb_intersection_coordinates, np.array([xcoord, ycoord])])
-    # Get the count of intersections through the triple points (from xcoord and ycoord)
-    tpcount = len(xcoord)
-
-    # Count the intersections: the ends count as half, hence the -1
-    # Add 0.5 counts for each time the line goes through a triple point.
-    P_L = sum(line_intersection_results[:, 4]) + 0.5 * tpcount - 1
-
-    # Calculate the intercept lengths
-    intercept_lengths = np.sqrt((gb_intersection_coordinates[:-2, 0] - gb_intersection_coordinates[1:, 0]) ** 2 + (gb_intersection_coordinates[:-2, 1] - gb_intersection_coordinates[1:, 1]) ** 2)
-
-    # % plotting subfunction
-    #     if ismember('PlotResults',varargin{:})
-    #         %--- plotting the structure
-    #         plot(ebsd, ebsd.orientations); hold on
-    #         plot(grains.boundary,'LineWidth',1); hold on
-    #         %--- plot triple points
-    #         plot(tP,'color','b','linewidth',2); hold on
-    #         %--- plotting the lines
-    #         plot(ebsd('genericCubic'), ebsd('genericCubic').orientations); hold on
-    #         plot(grains.boundary,'LineWidth',2); hold on
-    #         x = gb_intersection_coordinates(:,1);
-    #         y = gb_intersection_coordinates(:,2); hold on
-    #         for i=1:size(line_intersection_results,1)
-    #             line([line_intersection_results(i,1);line_intersection_results(i,3)], ...
-    #                 [line_intersection_results(i,2);line_intersection_results(i,4)], ...
-    #                 'linestyle','-','linewidth',4,'color','black')
-    #         end
-    #         %--- plotting the intersections
-    #         hold on
-    #         scatter(x,y,'w','linewidth',2); hold on
-    #         %--- plotting the coordinates considered intersecting a triple
-    #         %point
-    #         xc = triplept_intersection_coordinates(:,1);
-    #         yc = triplept_intersection_coordinates(:,2);
-    #         scatter(xc,yc,'r','linewidth',2)
-    #     end
-
-    return P_L, total_line_length, intercept_lengths, gb_intersection_coordinates, line_intersection_results, triplept_intersection_coordinates
-
-
 def GrainSize_E112_HeynRandomLineMLI(ebsd):
     # function [G_L, lbar, n, intercept_lengths] = GrainSize_E112_HeynRandomLineMLI(ebsd, varargin)
 
     # [G_L, ~, ~, ~, ~, intercept_lengths, ~, ~, ~, ~, ~] = grainsize_linint_random(ebsd, 50, varargin{:});
-    G_L, G_PL, MLI, MIC, grains, intercept_lengths, gb_intersection_coordinates, line_intersection_results, triplept_intersection_coordinates, nlines, total_line_length = grainsize_linint_random(ebsd, 50)
+    G_L, G_PL, MLI, MIC, grains, intercept_lengths, gb_intersection_coordinates, line_intersection_results, \
+        triplept_intersection_coordinates, nlines, total_line_length = grainsize_linint_random(ebsd, 50)
 
     # lbar = mean(intercept_lengths);
     lbar = np.mean(intercept_lengths)
@@ -796,11 +677,11 @@ def GrainSize_E112_HeynRandomLineMLI(ebsd):
 
     return G_L, lbar, n, intercept_lengths
 
-def GrainSize_E112_HeynRandomLinePL(ebsd):
-    # function[G_PL, MIC, intersection_count, nlines, total_line_length] = GrainSize_E112_HeynRandomLinePL(ebsd, varargin)
 
+def GrainSize_E112_HeynRandomLinePL(ebsd):
     # [~, G_PL, ~, MIC, ~, ~, ~, ~, ~, nlines, total_line_length] = grainsize_linint_random(ebsd, 50, varargin{:});
-    G_L, G_PL, MLI, MIC, grains, intercept_lengths, gb_intersection_coordinates, line_intersection_results, triplept_intersection_coordinates, nlines, total_line_length = grainsize_linint_random(ebsd, 50)
+    G_L, G_PL, MLI, MIC, grains, intercept_lengths, gb_intersection_coordinates, line_intersection_results, \
+        triplept_intersection_coordinates, nlines, total_line_length = grainsize_linint_random(ebsd, 50)
 
     # intersection_count = total_line_length / MIC;
     intersection_count = total_line_length / MIC
@@ -832,22 +713,12 @@ def GrainSize_E112_Hilliard(ebsd):
 
     # Extract triple points
     # tP = grains.triplePoints;
-    # x_tP = tP.x;
     x_tP = loadmat("GS_Meas\\myEBSD_high_res_1_x_tp.mat")
     x_tP = x_tP['x_tP']
-    # y_tP = tP.y;
     y_tP = loadmat("GS_Meas\\myEBSD_high_res_1_y_tp.mat")
     y_tP = y_tP['y_tP']
-    # tpoint = [x_tP, y_tP];
-    for i in range(len(x_tP)):
-        if i == 0:
-            tpoint = np.array([x_tP[i][0], y_tP[i][0]])
-        else:
-            coords = np.array([x_tP[i][0], y_tP[i][0]])
-            tpoint = np.vstack((tpoint, coords))
-    # ntpoints = size(tpoint);
+    tpoint = np.hstack((x_tP, y_tP))
     ntpoints = np.shape(tpoint)
-    # ntpoints = ntpoints(1);
     ntpoints = ntpoints[0]
 
     # Generating the circle
@@ -876,12 +747,7 @@ def GrainSize_E112_Hilliard(ebsd):
     # circ_y = radius * sin(thetas) + ycenter;
     circ_y = radius * np.sin(thetas) + ycenter
     # hilliardPolygon = [circ_x' circ_y'];
-    for i in range(len(circ_x)):
-        if i == 0:
-            hilliardPolygon = np.array([circ_x[i], circ_y[i]])
-        else:
-            coords = np.array([circ_x[i], circ_y[i]])
-            hilliardPolygon = np.vstack((hilliardPolygon, coords))
+    hilliardPolygon = np.hstack((circ_x, circ_y))
 
     # Generating the points where the line and the grain boundary intersect
     # hilliard_intersections = [];
@@ -935,7 +801,8 @@ def GrainSize_E112_Hilliard(ebsd):
 
     for m in range(ntpoints):
         # Distance in microns
-        dist = np.sqrt(((tpoint[m, 0] - hilliard_intersections[:, 0]) ** 2) + ((tpoint[m, 1] - hilliard_intersections[:, 1]) ** 2)) * tp_thresh * stepsize
+        dist = np.sqrt(((tpoint[m, 0] - hilliard_intersections[:, 0]) ** 2) +
+                       ((tpoint[m, 1] - hilliard_intersections[:, 1]) ** 2)) * tp_thresh * stepsize
 
         # Find the distance under threshold and use that as an index into xyints:
         current_coord = hilliard_intersections[dist < stepsize]
@@ -944,10 +811,7 @@ def GrainSize_E112_Hilliard(ebsd):
                 coord = current_coord[i]
                 xcoord = coord[:][0]
                 ycoord = coord[:][1]
-                if len(triplept_intersection_coordinates) == 0:
-                    triplept_intersection_coordinates = np.array([xcoord, ycoord])
-                else:
-                    triplept_intersection_coordinates = np.vstack([triplept_intersection_coordinates, np.array([xcoord, ycoord])])
+                triplept_intersection_coordinates = np.hstack((xcoord, ycoord))
 
     # Get the count of intersections through the triple points (from xcoord and ycoord)
     # xc = triplept_intersection_coordinates(:,1);
@@ -1031,22 +895,12 @@ def GrainSize_E112_Abrams(ebsd):
 
     # Extract triple points
     # tP = grains.triplePoints;
-    # x_tP = tP.x;
     x_tP = loadmat("GS_Meas\\myEBSD_high_res_1_x_tp.mat")
     x_tP = x_tP['x_tP']
-    # y_tP = tP.y;
     y_tP = loadmat("GS_Meas\\myEBSD_high_res_1_y_tp.mat")
     y_tP = y_tP['y_tP']
-    # tpoint = [x_tP, y_tP];
-    for i in range(len(x_tP)):
-        if i == 0:
-            tpoint = np.array([x_tP[i][0], y_tP[i][0]])
-        else:
-            coords = np.array([x_tP[i][0], y_tP[i][0]])
-            tpoint = np.vstack((tpoint, coords))
-    # ntpoints = size(tpoint);
+    tpoint = np.hstack((x_tP, y_tP))
     ntpoints = np.shape(tpoint)
-    # ntpoints = ntpoints(1);
     ntpoints = ntpoints[0]
 
     # Plot triple points
@@ -1080,12 +934,7 @@ def GrainSize_E112_Abrams(ebsd):
     #         circ_y_lg = radius_lg * sin(thetas) + ycenter;
     circ_y_lg = radius_lg * np.sin(thetas) + ycenter
     #         polygon_lg = [circ_x_lg' circ_y_lg']; % x/y coords of each line segment
-    for i in range(len(circ_x_lg)):
-        if i == 0:
-            polygon_lg = np.array([circ_x_lg[i], circ_y_lg[i]])
-        else:
-            coords = np.array([circ_x_lg[i], circ_y_lg[i]])
-            polygon_lg = np.vstack((polygon_lg, coords))
+    polygon_lg = np.hstack((circ_x_lg, circ_y_lg))  # x/y coords of each line segment
 
     #         % plot the largest circle
     # %         plot(circ_x_lg,circ_y_lg, 'k', 'linewidth', 3)
@@ -1150,12 +999,7 @@ def GrainSize_E112_Abrams(ebsd):
     #         circ_y_med = radius_med * sin(thetas) + ycenter;
     circ_y_med = radius_med * np.sin(thetas) + ycenter
     #         polygon_med = [circ_x_med' circ_y_med'];
-    for i in range(len(circ_x_med)):
-        if i == 0:
-            polygon_med = np.array([circ_x_med[i], circ_y_med[i]])
-        else:
-            coords = np.array([circ_x_med[i], circ_y_med[i]])
-            polygon_med = np.vstack((polygon_med, coords))
+    polygon_med = np.hstack((circ_x_med, circ_y_med))
 
     # %         plot(circ_x_med,circ_y_med, 'k', 'linewidth', 3)
     # %         hold on
@@ -1218,12 +1062,7 @@ def GrainSize_E112_Abrams(ebsd):
     #         circ_y_sm = radius_sm * sin(thetas) + ycenter;
     circ_y_sm = radius_sm * np.sin(thetas) + ycenter
     #         polygon_sm = [circ_x_sm' circ_y_sm'];
-    for i in range(len(circ_x_sm)):
-        if i == 0:
-            polygon_sm = np.array([circ_x_sm[i], circ_y_sm[i]])
-        else:
-            coords = np.array([circ_x_sm[i], circ_y_sm[i]])
-            polygon_sm = np.vstack((polygon_sm, coords))
+    polygon_sm = np.hstack((circ_x_sm, circ_y_sm))
 
     # %         plot(circ_x_sm,circ_y_sm, 'k', 'linewidth', 3)
     # %         hold on
@@ -1296,7 +1135,8 @@ def GrainSize_E112_Abrams(ebsd):
 
     for m in range(ntpoints):
         # Distance in microns
-        dist = np.sqrt(((tpoint[m, 0] - abrams_intersections[:, 0]) ** 2) + ((tpoint[m, 1] - abrams_intersections[:, 1]) ** 2)) * tp_thresh * stepsize
+        dist = np.sqrt(((tpoint[m, 0] - abrams_intersections[:, 0]) ** 2) +
+                       ((tpoint[m, 1] - abrams_intersections[:, 1]) ** 2)) * tp_thresh * stepsize
 
         # Find the distance under threshold and use that as an index into xyints:
         current_coord = abrams_intersections[dist < stepsize]
@@ -1305,10 +1145,7 @@ def GrainSize_E112_Abrams(ebsd):
                 coord = current_coord[i]
                 xcoord = coord[:][0]
                 ycoord = coord[:][1]
-                if len(triplept_intersection_coordinates) == 0:
-                    triplept_intersection_coordinates = np.array([xcoord, ycoord])
-                else:
-                    triplept_intersection_coordinates = np.vstack([triplept_intersection_coordinates, np.array([xcoord, ycoord])])
+                triplept_intersection_coordinates = np.hstack((xcoord, ycoord))
 
     # Get the count of intersections through the triple points (from xcoord and ycoord)
     # xc = triplept_intersection_coordinates(:,1);
@@ -1414,30 +1251,40 @@ def main():
     myEBSD.x = res_adjust * myEBSD.x
     myEBSD.y = res_adjust * myEBSD.y
 
-    print(G_meanintl(5))
-
     # Do some grain size measurements!
-    # G_S, N_A_S, n_S = GrainSize_E112_SaltikovPlanimetric(myEBSD)    # Verified output matches MATLAB (Requires changing inputs within grainsize_areas_planimetric)
+    # G_S, N_A_S, n_S = GrainSize_E112_SaltikovPlanimetric(myEBSD)
+    # Verified output matches MATLAB (Requires changing inputs within grainsize_areas_planimetric)
     # print(G_S, N_A_S, n_S)
-    # G_J, N_A_J, n_J = GrainSize_E112_JeffriesPlanimetric(myEBSD)    # Verified output matches MATLAB (Requires changing inputs within grainsize_areas_planimetric)
+    # G_J, N_A_J, n_J = GrainSize_E112_JeffriesPlanimetric(myEBSD)
+    # Verified output matches MATLAB (Requires changing inputs within grainsize_areas_planimetric)
     # print(G_J, N_A_J, n_J)
-    # G_A1, Abar_A1, n_A1, N_A_measured_A1, avg_px_per_grain_after_threshold, areas_A1 = GrainSize_E2627_AsWritten(myEBSD)    # Verified output matches MATLAB (Requires changing inputs within CustomMinGS)
+    # G_A1, Abar_A1, n_A1, N_A_measured_A1, avg_px_per_grain_after_threshold, areas_A1 = \
+    #     GrainSize_E2627_AsWritten(myEBSD)
+    # Verified output matches MATLAB (Requires changing inputs within CustomMinGS)
     # print(G_A1, Abar_A1, n_A1, N_A_measured_A1, avg_px_per_grain_after_threshold, areas_A1)
-    # G_A2, Abar_A2, n_A2, N_A_measured_A2, avg_px_per_grain_before_threshold, areas_A2 = GrainSize_E2627_CustomMinGS(myEBSD, 0.0)    # Verified output matches MATLAB (Requires changing inputs within CustomMinGS)
+    # G_A2, Abar_A2, n_A2, N_A_measured_A2, avg_px_per_grain_before_threshold, areas_A2 = \
+    #     GrainSize_E2627_CustomMinGS(myEBSD, 0.0)
+    # Verified output matches MATLAB (Requires changing inputs within CustomMinGS)
     # print(G_A2, Abar_A2, n_A2, N_A_measured_A2, avg_px_per_grain_before_threshold, areas_A2)
     # TODO: Incomplete translation due to randlin function
-    # G_L, lbar, n_L_intercepts, intercept_lengths_L = GrainSize_E112_HeynRandomLineMLI(myEBSD)     # Verified work done
+    # G_L, lbar, n_L_intercepts, intercept_lengths_L = GrainSize_E112_HeynRandomLineMLI(myEBSD)
+    # Verified work done
     # print(G_L, lbar, n_L_intercepts, intercept_lengths_L)
     # TODO: Incomplete translation due to randlin function
     # G_PL, P_L, PL_intersection_count, nlines, Heyn_total_line_length = GrainSize_E112_HeynRandomLinePL(myEBSD)
     # print(G_PL, P_L, PL_intersection_count, nlines, Heyn_total_line_length)
     # TODO: Incomplete translation due to MTEX interaction in for loop
-    # G_Hilliard, hilliardIntCount, hilliard_lbar, hilliardCircumference = GrainSize_E112_Hilliard(myEBSD)  # Verified output
-    # print(f"G_Hilliard = {G_Hilliard}, hilliardIntCount = {hilliardIntCount}, hilliard_lbar = {hilliard_lbar}, hilliardCircumference = {hilliardCircumference}")
+    G_Hilliard, hilliardIntCount, hilliard_lbar, hilliardCircumference = GrainSize_E112_Hilliard(myEBSD)
+    # Verified output
+    # print(f"G_Hilliard = {G_Hilliard}, hilliardIntCount = {hilliardIntCount}, hilliard_lbar = {hilliard_lbar}, "
+    #       f"hilliardCircumference = {hilliardCircumference}")
     # TODO: Incomplete translation due to MTEX interaction in for loop
-    # G_Abrams, abramsIntCount, abrams_lbar, abramsCircumference = GrainSize_E112_Abrams(myEBSD)    # Verified output
-    # print(f"G_Abrams = {G_Abrams}, abramsIntCount = {abramsIntCount}, abrams_lbar = {abrams_lbar}, abramsCircumference = {abramsCircumference}")
-    # G_largestGrain, volFraction = GrainSize_E930_ALA(myEBSD, G_S)   # Verified output matches MATLAB (Requires changing inputs within grainsize_areas_planimetric)
+    # G_Abrams, abramsIntCount, abrams_lbar, abramsCircumference = GrainSize_E112_Abrams(myEBSD)
+    # Verified output
+    # print(f"G_Abrams = {G_Abrams}, abramsIntCount = {abramsIntCount}, abrams_lbar = {abrams_lbar}, "
+    #       f"abramsCircumference = {abramsCircumference}")
+    # G_largestGrain, volFraction = GrainSize_E930_ALA(myEBSD, G_S)
+    # Verified output matches MATLAB (Requires changing inputs within grainsize_areas_planimetric)
     # print(G_largestGrain, volFraction)
 
 
