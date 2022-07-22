@@ -8,6 +8,7 @@ from scipy.io import loadmat
 import h5py
 import numpy as np
 from matplotlib import path
+import pickle
 
 
 class Dstruct:
@@ -457,10 +458,11 @@ def randlin(ebsd, n, grains, stepsize):
     # Calculate the distance between intersection points and triple points
     triplept_intersection_coordinates = []
     tp_thresh = 1.0  # Multiples of step size
+    xcoord = 0
     for m in range(ntpoints):
         # Distance in microns
-        dist = np.sqrt(((tpoint[m, 0] - gb_intersection_coordinates[:, 0]) ** 2) + (
-                    (tpoint[m, 1] - gb_intersection_coordinates[:, 1]) ** 2)) * tp_thresh * stepsize
+        dist = np.sqrt(((tpoint[m, 0] - gb_intersection_coordinates[:, 0]) ** 2) +
+                       ((tpoint[m, 1] - gb_intersection_coordinates[:, 1]) ** 2)) * tp_thresh * stepsize
 
         # Find the distance under threshold and use that as an index into xyints:
         current_coord = gb_intersection_coordinates[dist < stepsize]
@@ -811,13 +813,13 @@ def GrainSize_E112_Hilliard(ebsd):
                 coord = current_coord[i]
                 xcoord = coord[:][0]
                 ycoord = coord[:][1]
-                triplept_intersection_coordinates = np.hstack((xcoord, ycoord))
+                triplept_intersection_coordinates.append(np.hstack((xcoord, ycoord)))
 
     # Get the count of intersections through the triple points (from xcoord and ycoord)
     # xc = triplept_intersection_coordinates(:,1);
-    xc = triplept_intersection_coordinates[:, 0]
+    xc = triplept_intersection_coordinates[:][0]
     # yc = triplept_intersection_coordinates(:,2);
-    yc = triplept_intersection_coordinates[:, 1]
+    yc = triplept_intersection_coordinates[:][1]
     # hilliardTPcount = numel(xc)-1;
     hilliardTPcount = len(xc) - 1
 
@@ -1145,13 +1147,13 @@ def GrainSize_E112_Abrams(ebsd):
                 coord = current_coord[i]
                 xcoord = coord[:][0]
                 ycoord = coord[:][1]
-                triplept_intersection_coordinates = np.hstack((xcoord, ycoord))
+                triplept_intersection_coordinates.append(np.hstack((xcoord, ycoord)))
 
     # Get the count of intersections through the triple points (from xcoord and ycoord)
     # xc = triplept_intersection_coordinates(:,1);
-    xc = triplept_intersection_coordinates[:, 0]
+    xc = triplept_intersection_coordinates[:][0]
     # yc = triplept_intersection_coordinates(:,2);
-    yc = triplept_intersection_coordinates[:, 1]
+    yc = triplept_intersection_coordinates[:][1]
     # % hold on
     # % scatter(xc,yc,'r','linewidth',2)
 
@@ -1242,6 +1244,7 @@ def main():
     ebsd_x = loadmat(ebsd_x_path)  # Import raw ebsd.x from MTEX as .mat file
     ebsd_y = loadmat(ebsd_y_path)  # Import raw ebsd.y from MTEX as .mat file
     myEBSD = EBSD(ebsd_x, ebsd_y)
+
     slice_index = 2
     plane_normal = 'z'
     load_d3d_slice(user_dstruct, slice_index, plane_normal)
@@ -1250,6 +1253,10 @@ def main():
     res_adjust = 200.0 / (max(myEBSD.x) - min(myEBSD.x))
     myEBSD.x = res_adjust * myEBSD.x
     myEBSD.y = res_adjust * myEBSD.y
+
+    # pickle_out = open(f"myHighResEBSD.pickle", "wb")
+    # pickle.dump(myEBSD, pickle_out)
+    # pickle_out.close()
 
     # Do some grain size measurements!
     # G_S, N_A_S, n_S = GrainSize_E112_SaltikovPlanimetric(myEBSD)
@@ -1281,8 +1288,8 @@ def main():
     # TODO: Incomplete translation due to MTEX interaction in for loop
     # G_Abrams, abramsIntCount, abrams_lbar, abramsCircumference = GrainSize_E112_Abrams(myEBSD)
     # Verified output
-    # print(f"G_Abrams = {G_Abrams}, abramsIntCount = {abramsIntCount}, abrams_lbar = {abrams_lbar}, "
-    #       f"abramsCircumference = {abramsCircumference}")
+    print(f"G_Abrams = {G_Abrams}, abramsIntCount = {abramsIntCount}, abrams_lbar = {abrams_lbar}, "
+          f"abramsCircumference = {abramsCircumference}")
     # G_largestGrain, volFraction = GrainSize_E930_ALA(myEBSD, G_S)
     # Verified output matches MATLAB (Requires changing inputs within grainsize_areas_planimetric)
     # print(G_largestGrain, volFraction)
