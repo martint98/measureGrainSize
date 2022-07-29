@@ -22,14 +22,22 @@ class TestCalcGrainSize(unittest.TestCase):
         self.assertEqual(calc_grain_size.get_polygon_area_shoelace_formula(self.x, self.y), 36864.00000000001)
 
     def test_GrainSize_E112_Abrams(self):
-        pickle_in = open(f"myHighResEBSD.pickle", "rb")
+        class EBSD:
+            def __init__(self, x, y):
+                self.x = x['ebsd_x']
+                self.y = y['ebsd_y']
+        # TODO: Fix this test, python says the file is still open
+        # with open(f"C:\git\measureGrainSize\myHighResEBSD.pickle", "rb") as pickle_in:
+        #     self.ebsd = pickle.load(pickle_in)
+        pickle_in = open(f"C:/git/measureGrainSize/myHighResEBSD.pickle", "rb")
         self.ebsd = pickle.load(pickle_in)
+        pickle_in.close()
         print(f"ebsd = {self.ebsd}")
-        print(f"ebsdx = {self.ebsd.x}")
-        print(f"ebsdy = {self.ebsd.y}")
+        # print(f"ebsdx = {self.ebsd.x}")
+        # print(f"ebsdy = {self.ebsd.y}")
 
-        self.assertEqual(calc_grain_size.GrainSize_E112_Abrams(self.ebsd), [25.02798521], 66, [18.27835726], [1206.37157898])
+        self.assertEqual(calc_grain_size.GrainSize_E112_Abrams(self.ebsd), [24.85820742], 70, [17.2338797], [1206.37157898])
 
 
-if __name__ == '__main__':
-    unittest.main()
+# if __name__ == '__main__':
+#     unittest.main()

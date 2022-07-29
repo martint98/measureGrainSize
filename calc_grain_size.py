@@ -1151,9 +1151,9 @@ def GrainSize_E112_Abrams(ebsd):
 
     # Get the count of intersections through the triple points (from xcoord and ycoord)
     # xc = triplept_intersection_coordinates(:,1);
-    xc = triplept_intersection_coordinates[:][0]
+    xc = [triplept_intersection_coordinates[i][0] for i in range(len(triplept_intersection_coordinates))]
     # yc = triplept_intersection_coordinates(:,2);
-    yc = triplept_intersection_coordinates[:][1]
+    yc = [triplept_intersection_coordinates[i][1] for i in range(len(triplept_intersection_coordinates))]
     # % hold on
     # % scatter(xc,yc,'r','linewidth',2)
 
@@ -1286,7 +1286,7 @@ def main():
     # print(f"G_Hilliard = {G_Hilliard}, hilliardIntCount = {hilliardIntCount}, hilliard_lbar = {hilliard_lbar}, "
     #       f"hilliardCircumference = {hilliardCircumference}")
     # TODO: Incomplete translation due to MTEX interaction in for loop
-    # G_Abrams, abramsIntCount, abrams_lbar, abramsCircumference = GrainSize_E112_Abrams(myEBSD)
+    G_Abrams, abramsIntCount, abrams_lbar, abramsCircumference = GrainSize_E112_Abrams(myEBSD)
     # Verified output
     print(f"G_Abrams = {G_Abrams}, abramsIntCount = {abramsIntCount}, abrams_lbar = {abrams_lbar}, "
           f"abramsCircumference = {abramsCircumference}")
