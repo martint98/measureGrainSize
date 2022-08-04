@@ -8,7 +8,6 @@ from scipy.io import loadmat
 import h5py
 import numpy as np
 from matplotlib import path
-import pickle
 
 
 class Dstruct:
@@ -179,28 +178,32 @@ def edge_grain_segmentation(ebsd, polygon):
     # return inside_grains, edge_grains
 
 
-def grainsize_areas_planimetric(polygon):
+def grainsize_areas_planimetric(polygon_x, polygon_y, measurement_type: str):
     # Perform segmentation
     # [inside_grains, edge_grains] = edge_grain_segmentation(ebsd, polygon, varargin{:});
 
     # Calculate number of grains according to ASTM E-112 section 11.1
-    # inside_grains_area = loadmat("GS_Meas\\myEBSD_high_res_1_area_inside_grains.mat")    # Jeffries
-    # inside_grains_area = inside_grains_area['areaInsideGrains']                          # Jeffries
-    inside_grains_area = loadmat("GS_Meas\\myEBSD_high_res_1_inside_grains_area.mat")      # Saltikov and ALA
-    inside_grains_area = inside_grains_area['inside_grains_area']                          # Saltikov and ALA
+    if measurement_type == 'Saltikov' or 'ALA':
+        inside_grains_area = loadmat("GS_Meas\\myEBSD_high_res_1_inside_grains_area.mat")  # Saltikov and ALA
+        inside_grains_area = inside_grains_area['inside_grains_area']                      # Saltikov and ALA
+    if measurement_type == 'Jeffries':
+        inside_grains_area = loadmat("GS_Meas\\myEBSD_high_res_1_area_inside_grains.mat")  # Jeffries
+        inside_grains_area = inside_grains_area['areaInsideGrains']                        # Jeffries
     N_inside = len(inside_grains_area)
 
     # There is some bug in the edge grain segmentation which results in
     # duplicate grains. Selecting only unique centroids fixes this.
     # u = unique(edge_grains.centroid, 'rows');
-    # edge_grains_centroid = loadmat("GS_Meas\\myEBSD_high_res_1_jeffries_edge_grains_centroid.mat")  # Jeffriees
-    # u = np.unique(edge_grains_centroid['jeffries_edge_grain_centroids'])                            # Jeffries
-    edge_grains_centroid = loadmat("GS_Meas\\myEBSD_high_res_1_edge_grains_centroid.mat")  # Saltikov and ALA
-    u = np.unique(edge_grains_centroid['edge_grains_centroid'])                            # Saltikov and ALA
+    if measurement_type == 'Saltikov' or 'ALA':
+        edge_grains_centroid = loadmat("GS_Meas\\myEBSD_high_res_1_edge_grains_centroid.mat")         # Saltikov and ALA
+        u = np.unique(edge_grains_centroid['edge_grains_centroid'])                                   # Saltikov and ALA
+    if measurement_type == 'Jeffries':
+        edge_grains_centroid = loadmat("GS_Meas\\myEBSD_high_res_1_jeffries_edge_grains_centroid.mat")  # Jeffriees
+        u = np.unique(edge_grains_centroid['jeffries_edge_grain_centroids'])                            # Jeffries
     N_intercepted = len(u)
 
     # Calculate N_A for grain counting approaches
-    polygon_area = get_polygon_area_shoelace_formula(polygon[:, 0], polygon[:, 1])
+    polygon_area = get_polygon_area_shoelace_formula(polygon_x, polygon_y)
     N_A_counted = (N_inside + 0.5 * N_intercepted) / polygon_area
 
     # Note that this can alternatively be calculated as 1/N_A by the standard.
@@ -228,7 +231,7 @@ def get_polygon_area_shoelace_formula(x, y):
     return area
 
 
-def grainsize_linint_random(ebsd, min_intercepts):
+def grainsize_linint_random(ebsd, min_intercepts: int = 50):
     # detect grains
     # [grains,ebsd.grainId] = calcGrains(ebsd('indexed'), 'angle', 5*degree, 'unitcell');
 
@@ -532,7 +535,7 @@ def GrainSize_E112_SaltikovPlanimetric(ebsd):
                           [(max(ebsd.x) - xinset)[0], (min(ebsd.y) + yinset)[0]]])
 
     # [G_N, ~, N_A, N, ~, ~, inside_grains2, edge_grains2, ~] = grainsize_areas_planimetric(ebsd, polygon, varargin{:});
-    G_N, N_A, N = grainsize_areas_planimetric(polygon)
+    G_N, N_A, N = grainsize_areas_planimetric(polygon[:, 0], polygon[:, 1], 'Saltikov')
 
     # TODO: Figure out how below MATLAB plotting logic works and implement into Python
     # if ismember('PlotResults',varargin)
@@ -561,10 +564,9 @@ def GrainSize_E112_JeffriesPlanimetric(ebsd):
     radius = radius - inset  # inset from the edges of the scan
     circ_x = radius * np.cos(thetas) + xcenter
     circ_y = radius * np.sin(thetas) + ycenter
-    polygon = np.hstack((circ_x, circ_y))
 
     # [G_N, ~, N_A, N, ~, ~, inside_grains2, edge_grains2, ~] = grainsize_areas_planimetric(ebsd, polygon, varargin{:});
-    G_N, N_A, N = grainsize_areas_planimetric(polygon)
+    G_N, N_A, N = grainsize_areas_planimetric(circ_x, circ_y, 'Jeffries')
 
     # Plotting subfunction
     # if ismember('PlotResults',varargin)
@@ -580,13 +582,13 @@ def GrainSize_E2627_AsWritten(ebsd):
     # Perform ASTM E2627 measurement as written (minimum grain size 100 px)
 
     min_px_per_grain = 100
-    G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas = GrainSize_E2627_CustomMinGS(ebsd,
-                                                                                                       min_px_per_grain)
+    G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas = \
+        GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain, 'AsWritten')
 
     return G_A, Abar, n, N_A_measured, avg_px_per_grain_before_threshold, areas
 
 
-def GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain):
+def GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain: int = 0, measurement_type: str = 'CustomMinGS'):
     # Area based grain size measurement according to ASTM E2627
 
     # Works with similar outputs to other grain size functions except the
@@ -635,10 +637,12 @@ def GrainSize_E2627_CustomMinGS(ebsd, min_px_per_grain):
     # excluded_grains = inside_grains(inside_grains.area >= threshold);
     # inside_grains(inside_grains.area < threshold) = [];
     # areas = inside_grains.area;
-    # areas = loadmat("GS_Meas\\myEBSD_high_res_1_inside_grains_area_after_redux.mat")           # AsWritten
-    # areas = areas['inside_grains_area_1']                                                      # AsWritten
-    areas = loadmat("GS_Meas\\myEBSD_high_res_1_customGS_inside_grains_area_after_redux.mat")  # CustomGS
-    areas = areas['areas']
+    if measurement_type == 'AsWritten':
+         areas = loadmat("GS_Meas\\myEBSD_high_res_1_inside_grains_area_after_redux.mat")
+         areas = areas['inside_grains_area_1']
+    else:                                           # CustomMinGS
+        areas = loadmat("GS_Meas\\myEBSD_high_res_1_customGS_inside_grains_area_after_redux.mat")
+        areas = areas['areas']
     n = len(areas)
     Abar = np.mean(areas)
 
@@ -669,12 +673,9 @@ def GrainSize_E112_HeynRandomLineMLI(ebsd):
     # function [G_L, lbar, n, intercept_lengths] = GrainSize_E112_HeynRandomLineMLI(ebsd, varargin)
 
     # [G_L, ~, ~, ~, ~, intercept_lengths, ~, ~, ~, ~, ~] = grainsize_linint_random(ebsd, 50, varargin{:});
-    G_L, G_PL, MLI, MIC, grains, intercept_lengths, gb_intersection_coordinates, line_intersection_results, \
-        triplept_intersection_coordinates, nlines, total_line_length = grainsize_linint_random(ebsd, 50)
+    G_L, _, _, _, _, intercept_lengths, _, _, _, _, _ = grainsize_linint_random(ebsd)
 
-    # lbar = mean(intercept_lengths);
     lbar = np.mean(intercept_lengths)
-    # n = length(intercept_lengths);
     n = len(intercept_lengths)
 
     return G_L, lbar, n, intercept_lengths
@@ -682,8 +683,7 @@ def GrainSize_E112_HeynRandomLineMLI(ebsd):
 
 def GrainSize_E112_HeynRandomLinePL(ebsd):
     # [~, G_PL, ~, MIC, ~, ~, ~, ~, ~, nlines, total_line_length] = grainsize_linint_random(ebsd, 50, varargin{:});
-    G_L, G_PL, MLI, MIC, grains, intercept_lengths, gb_intersection_coordinates, line_intersection_results, \
-        triplept_intersection_coordinates, nlines, total_line_length = grainsize_linint_random(ebsd, 50)
+    _, G_PL, _, MIC, _, _, _, _, _, nlines, total_line_length = grainsize_linint_random(ebsd)
 
     # intersection_count = total_line_length / MIC;
     intersection_count = total_line_length / MIC
@@ -817,9 +817,9 @@ def GrainSize_E112_Hilliard(ebsd):
 
     # Get the count of intersections through the triple points (from xcoord and ycoord)
     # xc = triplept_intersection_coordinates(:,1);
-    xc = triplept_intersection_coordinates[:][0]
+    xc = [triplept_intersection_coordinates[i][0] for i in range(len(triplept_intersection_coordinates))]
     # yc = triplept_intersection_coordinates(:,2);
-    yc = triplept_intersection_coordinates[:][1]
+    yc = [triplept_intersection_coordinates[i][1] for i in range(len(triplept_intersection_coordinates))]
     # hilliardTPcount = numel(xc)-1;
     hilliardTPcount = len(xc) - 1
 
@@ -1260,38 +1260,30 @@ def main():
 
     # Do some grain size measurements!
     # G_S, N_A_S, n_S = GrainSize_E112_SaltikovPlanimetric(myEBSD)
-    # Verified output matches MATLAB (Requires changing inputs within grainsize_areas_planimetric)
     # print(G_S, N_A_S, n_S)
     # G_J, N_A_J, n_J = GrainSize_E112_JeffriesPlanimetric(myEBSD)
-    # Verified output matches MATLAB (Requires changing inputs within grainsize_areas_planimetric)
     # print(G_J, N_A_J, n_J)
     # G_A1, Abar_A1, n_A1, N_A_measured_A1, avg_px_per_grain_after_threshold, areas_A1 = \
     #     GrainSize_E2627_AsWritten(myEBSD)
-    # Verified output matches MATLAB (Requires changing inputs within CustomMinGS)
     # print(G_A1, Abar_A1, n_A1, N_A_measured_A1, avg_px_per_grain_after_threshold, areas_A1)
     # G_A2, Abar_A2, n_A2, N_A_measured_A2, avg_px_per_grain_before_threshold, areas_A2 = \
-    #     GrainSize_E2627_CustomMinGS(myEBSD, 0.0)
-    # Verified output matches MATLAB (Requires changing inputs within CustomMinGS)
+    #     GrainSize_E2627_CustomMinGS(myEBSD)
     # print(G_A2, Abar_A2, n_A2, N_A_measured_A2, avg_px_per_grain_before_threshold, areas_A2)
     # TODO: Incomplete translation due to randlin function
-    # G_L, lbar, n_L_intercepts, intercept_lengths_L = GrainSize_E112_HeynRandomLineMLI(myEBSD)
-    # Verified work done
-    # print(G_L, lbar, n_L_intercepts, intercept_lengths_L)
+    G_L, lbar, n_L_intercepts, intercept_lengths_L = GrainSize_E112_HeynRandomLineMLI(myEBSD)
+    print(G_L, lbar, n_L_intercepts, intercept_lengths_L)
     # TODO: Incomplete translation due to randlin function
     # G_PL, P_L, PL_intersection_count, nlines, Heyn_total_line_length = GrainSize_E112_HeynRandomLinePL(myEBSD)
     # print(G_PL, P_L, PL_intersection_count, nlines, Heyn_total_line_length)
     # TODO: Incomplete translation due to MTEX interaction in for loop
-    G_Hilliard, hilliardIntCount, hilliard_lbar, hilliardCircumference = GrainSize_E112_Hilliard(myEBSD)
-    # Verified output
+    # G_Hilliard, hilliardIntCount, hilliard_lbar, hilliardCircumference = GrainSize_E112_Hilliard(myEBSD)
     # print(f"G_Hilliard = {G_Hilliard}, hilliardIntCount = {hilliardIntCount}, hilliard_lbar = {hilliard_lbar}, "
     #       f"hilliardCircumference = {hilliardCircumference}")
     # TODO: Incomplete translation due to MTEX interaction in for loop
-    G_Abrams, abramsIntCount, abrams_lbar, abramsCircumference = GrainSize_E112_Abrams(myEBSD)
-    # Verified output
-    print(f"G_Abrams = {G_Abrams}, abramsIntCount = {abramsIntCount}, abrams_lbar = {abrams_lbar}, "
-          f"abramsCircumference = {abramsCircumference}")
+    # G_Abrams, abramsIntCount, abrams_lbar, abramsCircumference = GrainSize_E112_Abrams(myEBSD)
+    # print(f"G_Abrams = {G_Abrams}, abramsIntCount = {abramsIntCount}, abrams_lbar = {abrams_lbar}, "
+    #       f"abramsCircumference = {abramsCircumference}")
     # G_largestGrain, volFraction = GrainSize_E930_ALA(myEBSD, G_S)
-    # Verified output matches MATLAB (Requires changing inputs within grainsize_areas_planimetric)
     # print(G_largestGrain, volFraction)
 
 
